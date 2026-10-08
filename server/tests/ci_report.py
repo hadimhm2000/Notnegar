@@ -10,7 +10,8 @@ def enc(s: str) -> str:
 
 def main(log_path: str, out_dir: str, tag: str):
     log = Path(log_path).read_text(errors="replace") if Path(log_path).exists() else ""
-    if "failed" in log.lower() or "error" in log.lower():
+    import re
+    if re.search(r"^(FAILED|ERROR) |\b\d+ (failed|error)", log, re.M):
         tail = log[-6000:]
         print(f"::error title={tag} pytest::{enc(tail)}")
     for a in sorted(Path(out_dir).glob("**/job/analysis.json")):
