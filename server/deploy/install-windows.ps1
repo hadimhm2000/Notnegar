@@ -69,13 +69,34 @@ function Add-MachinePath([string]$dir) {
 
 # ---------------------------------------------------------------- Python 3.11
 Say "Python 3.11"
-$Py = "C:\Program Files\Python311\python.exe"
-if (-not (Test-Path $Py)) {
+function Find-Python311 {
+  $cands = @((Join-Path $InstallDir "python311\python.exe"), "C:\Program Files\Python311\python.exe")
+  foreach ($hive in @("HKLM:\SOFTWARE\Python\PythonCore\3.11\InstallPath", "HKCU:\SOFTWARE\Python\PythonCore\3.11\InstallPath",
+                      "HKLM:\SOFTWARE\WOW6432Node\Python\PythonCore\3.11\InstallPath")) {
+    $k = Get-ItemProperty -Path $hive -ErrorAction SilentlyContinue
+    if ($k) {
+      if ($k.ExecutablePath) { $cands += $k.ExecutablePath }
+      if ($k."(default)") { $cands += (Join-Path $k."(default)" "python.exe") }
+    }
+  }
+  foreach ($c in $cands) {
+    if ($c -and (Test-Path $c)) {
+      $v = & $c -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
+      if ($v -eq "3.11") { return $c }
+    }
+  }
+  return $null
+}
+$Py = Find-Python311
+if (-not $Py) {
   $exe = Get-File @("https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe") "python-3.11.9-amd64.exe"
-  $p = Start-Process -FilePath $exe -ArgumentList "/quiet InstallAllUsers=1 PrependPath=0 Include_test=0 Include_launcher=0 Include_doc=0" -Wait -PassThru
-  if (-not (Test-Path $Py)) { Fail "Python installation failed (exit code $($p.ExitCode))." }
+  $target = Join-Path $InstallDir "python311"
+  $p = Start-Process -FilePath $exe -ArgumentList "/quiet InstallAllUsers=1 TargetDir=`"$target`" PrependPath=0 Include_test=0 Include_launcher=0 Include_doc=0 Shortcuts=0" -Wait -PassThru
+  $Py = Find-Python311
+  if (-not $Py) { Fail "Python installation failed (exit code $($p.ExitCode))." }
 }
 & $Py --version
+Write-Host "    $Py"
 
 # ---------------------------------------------------------------- ffmpeg
 Say "ffmpeg"
