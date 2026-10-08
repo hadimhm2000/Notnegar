@@ -1,0 +1,16 @@
+# systemd unit for an installation without Docker (see deploy/install.sh)
+[Unit]
+Description=Notnegar music transcription server
+After=network.target
+
+[Service]
+User=notnegar
+WorkingDirectory=/opt/notnegar/server
+EnvironmentFile=-/opt/notnegar/server/.env
+Environment=NOTNEGAR_DATA=/opt/notnegar/data TORCH_HOME=/opt/notnegar/models
+ExecStart=/opt/notnegar/venv/bin/uvicorn notnegar.app:app --host 127.0.0.1 --port 8000 --proxy-headers
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

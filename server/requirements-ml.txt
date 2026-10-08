@@ -1,0 +1,4 @@
+# machine-learning models (install torch/torchaudio first from the PyTorch index, see Dockerfile)
+demucs==4.0.1
+torchcrepe==0.0.23
+# basic-pitch is installed separately in the Dockerfile because it pulls TensorFlow

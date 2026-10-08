@@ -1,0 +1,6 @@
+# core (enough to run the server with the built-in fallbacks)
+numpy>=1.24,<2
+scipy>=1.10,<1.14
+starlette>=0.40
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9

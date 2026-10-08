@@ -433,11 +433,12 @@ async function analyze(audio){
   });
 
   // 7. pitch-class histogram (by note duration) and phrase finals
-  const hist = new Float64Array(24), fin = new Float64Array(24); let ht = 0, ft = 0;
+  const hist = new Float64Array(24), fin = new Float64Array(24); let ht = 0, ft = 0, nFin = 0;
   notes.forEach((nt,i) => {
     const k = ((nt.q%24)+24)%24, d = nt.t1 - nt.t0; hist[k] += d; ht += d;
-    const nx = notes[i+1]; if (!nx || nx.t0 - nt.t1 > 0.3){ const w = d + (nx ? 0 : 0.5); fin[k] += w; ft += w; }
+    const nx = notes[i+1]; if (!nx || nx.t0 - nt.t1 > 0.3){ const w = d + (nx ? 0 : 0.5); fin[k] += w; ft += w; nFin++; }
   });
+  const finW = 0.4*Math.min(1, nFin/12);   // phrase endings only break ties, and count less when few
   for (let k=0;k<24;k++){ hist[k] /= ht || 1; fin[k] /= ft || 1; }
 
   // 8. dastgah / scale: every template at every tonic; without quarter-tones only 12-tone scales qualify
@@ -449,7 +450,7 @@ async function analyze(audio){
     for (let t=0;t<24;t++){
       if (!quarter && (needsQ || t%2)) continue;
       let s = 0; for (let k=0;k<24;k++) s += hist[k] * (mask[((k-t)%24+24)%24] ? 1 : -1.3);
-      s += 0.55*hist[t] + 0.75*fin[t];
+      s += 0.35*hist[t] + finW*fin[t];
       if (s > best.s) best = {s, t};
     }
     if (best.s > -1e9) scores.push({D, s:best.s, t:best.t});

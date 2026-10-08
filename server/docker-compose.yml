@@ -1,0 +1,10 @@
+services:
+  notnegar:
+    build: .
+    image: notnegar:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${NOTNEGAR_BIND:-127.0.0.1}:8000:8000"
+    volumes:
+      - ./data:/data

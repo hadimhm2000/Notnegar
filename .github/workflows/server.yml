@@ -1,0 +1,81 @@
+name: server
+
+on:
+  push:
+    paths: ["server/**", ".github/workflows/server.yml"]
+  workflow_dispatch:
+
+jobs:
+  core:
+    name: core + LilyPond
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg lilypond fonts-noto-core fonts-dejavu-core
+          sudo apt-get install -y --no-install-recommends fonts-vazirmatn || true
+          lilypond --version | head -1
+      - run: pip install -r server/requirements.txt pytest
+      - name: tests
+        working-directory: server
+        env: { NOTNEGAR_TEST_OUT: "${{ github.workspace }}/out" }
+        run: python -m pytest -q tests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: core-output, path: "out/**/job/score.*\nout/**/job/lilypond.log\nout/**/job/analysis.json", if-no-files-found: ignore }
+
+  full:
+    name: with Demucs, CREPE, Basic Pitch
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg lilypond fonts-noto-core fonts-dejavu-core
+          sudo apt-get install -y --no-install-recommends fonts-vazirmatn || true
+      - name: python packages
+        run: |
+          pip install torch==2.3.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r server/requirements.txt -r server/requirements-ml.txt pytest
+          pip install "basic-pitch==0.4.0" "numpy<2" || echo "basic-pitch skipped"
+      - name: capabilities
+        working-directory: server
+        run: |
+          python -c "from notnegar.separate import demucs_available as d; from notnegar.transcribe import crepe_available as c, basic_pitch_available as b; from notnegar.lilypond import lily_available as l; print('demucs', d(), 'crepe', c(), 'basic_pitch', b(), 'lilypond', l())"
+          python scripts/download_models.py
+      - name: tests
+        working-directory: server
+        env: { NOTNEGAR_TEST_OUT: "${{ github.workspace }}/out" }
+        run: python -m pytest -q -s tests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: full-output, path: "out/**/job/score.*\nout/**/job/lilypond.log\nout/**/job/analysis.json", if-no-files-found: ignore }
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: build
+        working-directory: server
+        run: docker build -t notnegar:ci .
+      - name: run and process a song
+        working-directory: server
+        run: |
+          cp .env.example .env
+          docker run -d --name nn -p 8000:8000 --env-file .env notnegar:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/api/health && break; sleep 2; done; echo
+          pip install numpy scipy
+          python -c "import sys; sys.path.insert(0,'.'); from tests.synth import song; from notnegar.audio import write_wav; s,m,e=song('segah'); write_wav('/tmp/segah.wav', m)"
+          ID=$(curl -fs -F file=@/tmp/segah.wav -F title=ci localhost:8000/api/jobs | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
+          for i in $(seq 1 180); do S=$(curl -fs localhost:8000/api/jobs/$ID | python -c "import sys,json;d=json.load(sys.stdin);print(d['state'])"); echo "$S"; [ "$S" = done ] || [ "$S" = error ] && break; sleep 5; done
+          curl -fs localhost:8000/api/jobs/$ID | python -c "import sys,json;d=json.load(sys.stdin);print(json.dumps({k:d.get(k) for k in ('state','error','elapsed')}));r=d['result'];print(r['analysis']['scale_id'],r['analysis']['tonic'],r['files'],r['separation'])"
+          curl -fs -o /tmp/score.pdf "localhost:8000/api/jobs/$ID/file/score.pdf"
+          docker logs nn | tail -20

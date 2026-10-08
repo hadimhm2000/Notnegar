@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>نت‌نگار</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@500;700&family=Vazirmatn:wght@400;500;700&display=swap">
+<style>
+/* Layout: a working desk — request form on the right (RTL), results on the left; one column on phones. */
+:root{
+  --paper:#F3F4F7; --surface:#FFFFFF; --ink:#172033; --muted:#5A6378; --line:#DADFE8;
+  --lapis:#2847A8; --lapis-soft:#E5EAF8; --saffron:#B4760B; --saffron-soft:#F8EEDB;
+  --good:#2D7A4E; --bad:#B3261E;
+  --display:"Noto Naskh Arabic", "Vazirmatn", serif;
+  --body:"Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0F131C; --surface:#171D29; --ink:#E5E9F1; --muted:#9AA3B6; --line:#2A3242;
+  --lapis:#8EA6FF; --lapis-soft:#1F2A4A; --saffron:#E3A944; --saffron-soft:#3A2D14; --good:#6CC395; --bad:#F2B8B5; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#0F131C; --surface:#171D29; --ink:#E5E9F1; --muted:#9AA3B6; --line:#2A3242;
+  --lapis:#8EA6FF; --lapis-soft:#1F2A4A; --saffron:#E3A944; --saffron-soft:#3A2D14; --good:#6CC395; --bad:#F2B8B5; color-scheme:dark }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.75}
+.app{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:28px 56px;display:grid;gap:24px}
+header{display:grid;gap:4px}
+header h1{font-family:var(--display);font-weight:700;font-size:2.1rem;margin:0;line-height:1.3}
+header p{margin:0;color:var(--muted);max-width:66ch}
+.caps{display:flex;flex-wrap:wrap;gap:6px;font-size:.78rem}
+.cap{border:1px solid var(--line);border-radius:999px;padding:1px 10px;color:var(--muted)}
+.cap.on{border-color:var(--good);color:var(--good)}
+.desk{display:grid;grid-template-columns:330px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:880px){.desk{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:14px;min-width:0}
+.panel h2{font-family:var(--display);font-size:1.2rem;margin:0;font-weight:700}
+aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:880px){aside.panel{position:static}}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:16px;text-align:center;display:grid;gap:6px;cursor:pointer}
+.drop.over{border-color:var(--lapis);background:var(--lapis-soft)}
+.drop small{color:var(--muted)}
+.drop .fname{font-weight:700;word-break:break-all}
+label.f{display:grid;gap:4px;font-size:.88rem;color:var(--muted)}
+input[type=text],input[type=email],select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:7px 10px;min-width:0;width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.checks{display:grid;gap:6px;font-size:.92rem}
+.checks label{display:flex;gap:8px;align-items:center}
+button,.btn{font:inherit;cursor:pointer;border-radius:7px;padding:8px 14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button.primary,.btn.primary{background:var(--lapis);border-color:var(--lapis);color:var(--surface);font-weight:700}
+button:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--lapis);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.note{font-size:.88rem;color:var(--muted);margin:0}
+.msg{font-size:.9rem;margin:0}
+.msg.bad{color:var(--bad)}
+.results{display:grid;gap:20px;min-width:0}
+.progress{display:grid;gap:8px}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--lapis);transition:width .4s}
+.steps{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.85rem;color:var(--muted)}
+.steps span.done{color:var(--good)}
+.steps span.now{color:var(--ink);font-weight:700}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.fact{border-inline-start:3px solid var(--line);padding-inline-start:12px;display:grid;gap:2px}
+.fact.key{border-color:var(--lapis)}
+.fact .k{font-size:.8rem;color:var(--muted)}
+.fact .v{font-family:var(--display);font-size:1.4rem;font-weight:700;line-height:1.4}
+.fact .s{font-size:.85rem;color:var(--muted)}
+.flag{background:var(--saffron-soft);border-radius:8px;padding:10px 12px;font-size:.9rem}
+.layers{display:grid;gap:10px}
+.layer{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;border-bottom:1px solid var(--line);padding-block:8px}
+.layer:last-child{border-bottom:0}
+.layer .name{display:flex;gap:8px;align-items:center;font-weight:700}
+.layer .meta{font-size:.8rem;color:var(--muted)}
+.layer audio{grid-column:1 / -1;width:100%;height:36px}
+.layer.quiet{opacity:.6}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.92rem}
+th,td{padding:7px 10px;text-align:start;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:.82rem}
+td.qt{color:var(--saffron);font-weight:700}
+canvas{display:block;width:100%;max-width:100%}
+.pdfview{width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+pre.log{white-space:pre-wrap;font-size:.75rem;background:var(--paper);border-radius:6px;padding:8px;direction:ltr;text-align:left;max-height:200px;overflow:auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>نت‌نگار</h1>
+    <p>آهنگ را بفرستید؛ سرور لایه‌های آن را جدا می‌کند (آواز، بیس، ضرب، گیتار، پیانو و سازهای دیگر)، دستگاه، نت پایه، کوک و تمپو را تشخیص می‌دهد و برای هر لایه نت می‌نویسد.</p>
+    <div class="caps" id="caps"></div>
+  </header>
+
+  <div class="desk">
+    <aside class="panel">
+      <h2>آهنگ جدید</h2>
+      <form id="form" class="panel" style="padding:0;border:0;gap:14px">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="انتخاب فایل صوتی">
+          <strong id="dropTitle">فایل صوتی را اینجا رها کنید یا بزنید</strong>
+          <small id="dropHint">MP3، WAV، FLAC، OGG یا M4A</small>
+          <span class="fname" id="fname" hidden></span>
+          <input type="file" id="file" name="file" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a" hidden>
+        </div>
+        <label class="f" for="title">عنوان قطعه<input type="text" id="title" name="title" placeholder="از نام فایل برداشته می‌شود"></label>
+        <label class="f" for="artist">آهنگساز یا خواننده<input type="text" id="artist" name="artist" placeholder="اختیاری"></label>
+        <div class="row2">
+          <label class="f" for="instrument">ساز شما
+            <select id="instrument" name="instrument">
+              <option value="santur">سنتور</option><option value="tar">تار و سه‌تار</option>
+              <option value="kamancheh">کمانچه</option><option value="ney">نی</option>
+              <option value="piano">پیانو یا ساز غربی</option><option value="voice">آواز</option>
+            </select>
+          </label>
+          <label class="f" for="detail">جزئیات نت
+            <select id="detail" name="detail">
+              <option value="simple">ساده (برای اجرا)</option>
+              <option value="normal" selected>معمولی</option>
+              <option value="detailed">دقیق (همه‌ی تحریرها)</option>
+            </select>
+          </label>
+        </div>
+        <div class="checks">
+          <label><input type="checkbox" id="names" name="names" checked> نام فارسی زیر نت ملودی</label>
+          <label><input type="checkbox" id="tuning" name="tuning" checked> جدول کوک در PDF</label>
+        </div>
+        <label class="f" for="email" id="emailWrap" hidden>ارسال نتیجه به ایمیل (اختیاری)<input type="email" id="email" name="email" placeholder="name@example.com" dir="ltr"></label>
+        <button type="submit" class="primary" id="go" disabled>ارسال و تحلیل</button>
+        <p class="msg" id="formMsg"></p>
+      </form>
+    </aside>
+
+    <main class="results" id="results">
+      <section class="panel" id="intro">
+        <h2>چطور کار می‌کند</h2>
+        <ol class="note" style="margin:0;padding-inline-start:20px;display:grid;gap:4px">
+          <li>آهنگ به لایه‌های جدا تقسیم می‌شود. هر لایه را جداگانه می‌توانید بشنوید و دانلود کنید.</li>
+          <li>ملودی اصلی دنبال می‌شود و دستگاه یا گام، نت پایه، کوک و ربع‌پرده‌ها تشخیص داده می‌شوند.</li>
+          <li>هر لایه نت‌نویسی می‌شود و یک پارتیتور چندخطی PDF با علامت‌های کرن و سری ساخته می‌شود.</li>
+          <li>بعد از پایان کار می‌توانید دستگاه، نت پایه و لایه‌های داخل پارتیتور را عوض کنید.</li>
+        </ol>
+      </section>
+
+      <section class="panel" id="prog" hidden>
+        <h2 id="progTitle">در حال پردازش</h2>
+        <div class="progress">
+          <div class="bar"><i id="progBar"></i></div>
+          <p class="msg" id="progStage"></p>
+          <p class="note">این صفحه را می‌توانید ببندید؛ نشانی همین صفحه نتیجه را بعداً نشان می‌دهد.</p>
+        </div>
+      </section>
+
+      <section class="panel" id="summary" hidden>
+        <h2 id="resTitle">نتیجه</h2>
+        <div class="facts" id="facts"></div>
+        <p class="flag" id="scaleNote" hidden></p>
+        <p class="note" id="methodNote"></p>
+      </section>
+
+      <section class="panel" id="outputs" hidden>
+        <h2>پارتیتور و فایل‌ها</h2>
+        <div class="btns" id="downloads"></div>
+        <p class="msg bad" id="pdfErr" hidden></p>
+        <iframe class="pdfview" id="pdfview" title="پیش‌نمایش پارتیتور" hidden></iframe>
+        <div id="emailBox" hidden class="btns" style="align-items:end">
+          <label class="f" for="email2" style="flex:1;min-width:200px">ارسال به ایمیل<input type="email" id="email2" dir="ltr" placeholder="name@example.com"></label>
+          <button type="button" id="sendMail">ارسال</button>
+        </div>
+        <p class="msg" id="mailMsg"></p>
+      </section>
+
+      <section class="panel" id="layersBox" hidden>
+        <h2>لایه‌ها</h2>
+        <p class="note">هر لایه را بشنوید و انتخاب کنید کدام‌ها در پارتیتور بیایند.</p>
+        <div class="layers" id="layers"></div>
+      </section>
+
+      <section class="panel" id="edit" hidden>
+        <h2>اصلاح و ساخت دوباره‌ی پارتیتور</h2>
+        <div class="row2">
+          <label class="f" for="ovScale">دستگاه یا گام<select id="ovScale"></select></label>
+          <label class="f" for="ovTonic">نت پایه<select id="ovTonic"></select></label>
+        </div>
+        <div class="row2">
+          <label class="f" for="ovInstr">ساز برای جدول کوک<select id="ovInstr"></select></label>
+          <label class="f" for="ovTitle">عنوان<input type="text" id="ovTitle"></label>
+        </div>
+        <div class="checks"><label><input type="checkbox" id="ovNames"> نام فارسی زیر نت ملودی</label></div>
+        <div class="btns"><button type="button" class="primary" id="rerender">ساخت دوباره</button></div>
+        <p class="msg" id="editMsg"></p>
+      </section>
+
+      <section class="panel" id="tuneBox" hidden>
+        <h2>کوک</h2>
+        <div class="tablewrap"><table id="tuneTable"></table></div>
+      </section>
+
+      <section class="panel" id="chartBox" hidden>
+        <h2>توزیع نت‌ها</h2>
+        <p class="note">ستون‌های پررنگ درجه‌های دستگاه هستند؛ هر ستون یک ربع‌پرده است.</p>
+        <canvas id="hist"></canvas>
+        <h2>حرکت ملودی اصلی</h2>
+        <canvas id="contour"></canvas>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const fa = n => Number(n).toLocaleString('fa-IR');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SCALES = [['shur','شور'],['mahur','ماهور'],['minor','مینور'],['hminor','مینور هارمونیک'],['homayun','همایون'],['esfahan','بیات اصفهان'],['segah','سه‌گاه'],['chahargah','چهارگاه'],['nava','نوا']];
+const PC = ['دو','دو سری','دو دیز','ر کرن','ر','ر سری','می بمل','می کرن','می','فا کرن','فا','فا سری','فا دیز','سل کرن','سل','سل سری','لا بمل','لا کرن','لا','لا سری','سی بمل','سی کرن','سی','دو کرن'];
+const INSTR = [['santur','سنتور'],['tar','تار و سه‌تار'],['kamancheh','کمانچه'],['ney','نی'],['piano','پیانو یا ساز غربی'],['voice','آواز']];
+const STAGES = ['خواندن فایل','جداسازی لایه‌ها','تمپو','ملودی اصلی','نت‌نویسی لایه‌ها','پارتیتور'];
+let H = {}, job = null, result = null, timer = null;
+
+// ---------- capabilities ----------
+fetch('api/health').then(r => r.json()).then(h => {
+  H = h;
+  const caps = [['demucs','جداسازی Demucs'],['crepe','CREPE'],['basic_pitch','Basic Pitch'],['lilypond','LilyPond'],['email','ایمیل']];
+  $('caps').innerHTML = caps.map(([k,l]) => `<span class="cap${h[k]?' on':''}">${l}${h[k]?'':' ✕'}</span>`).join('');
+  $('dropHint').textContent = `MP3، WAV، FLAC، OGG یا M4A · حداکثر ${fa(h.max_upload_mb)} مگابایت`;
+  $('emailWrap').hidden = !h.email;
+}).catch(() => {});
+
+// ---------- form ----------
+const drop = $('drop'), file = $('file');
+drop.addEventListener('click', () => file.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); file.click(); } });
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]){ file.files = e.dataTransfer.files; picked(); } });
+file.addEventListener('change', picked);
+function picked(){
+  const f = file.files[0]; $('go').disabled = !f;
+  $('fname').hidden = !f; $('fname').textContent = f ? `${f.name} · ${fa((f.size/1048576).toFixed(1))} مگابایت` : '';
+}
+
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const f = file.files[0]; if (!f) return;
+  const fd = new FormData();
+  fd.append('file', f);
+  ['title','artist','instrument','detail','email'].forEach(k => fd.append(k, $(k).value));
+  fd.append('names', $('names').checked); fd.append('tuning', $('tuning').checked);
+  $('go').disabled = true; $('formMsg').className = 'msg'; $('formMsg').textContent = 'در حال ارسال فایل… ۰٪';
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', 'api/jobs');
+  xhr.upload.onprogress = ev => { if (ev.lengthComputable) $('formMsg').textContent = `در حال ارسال فایل… ${fa(Math.round(ev.loaded/ev.total*100))}٪`; };
+  xhr.onload = () => {
+    let r = {}; try { r = JSON.parse(xhr.responseText); } catch(_) {}
+    if (xhr.status === 201){ $('formMsg').textContent = ''; location.hash = r.id; start(r.id); }
+    else { $('formMsg').className = 'msg bad'; $('formMsg').textContent = r.error || 'ارسال ناموفق بود.'; $('go').disabled = false; }
+  };
+  xhr.onerror = () => { $('formMsg').className = 'msg bad'; $('formMsg').textContent = 'ارتباط با سرور برقرار نشد.'; $('go').disabled = false; };
+  xhr.send(fd);
+});
+
+// ---------- job polling ----------
+function start(id){
+  job = id; result = null; clearTimeout(timer);
+  ['summary','outputs','layersBox','edit','tuneBox','chartBox','intro'].forEach(s => $(s).hidden = true);
+  $('prog').hidden = false; poll();
+}
+async function poll(){
+  let st;
+  try { const r = await fetch(`api/jobs/${job}`); st = await r.json(); if (!r.ok) throw new Error(st.error); }
+  catch(e){ $('progTitle').textContent = 'پیدا نشد'; $('progStage').textContent = e.message || 'این کار پیدا نشد.'; $('go').disabled = !file.files[0]; return; }
+  if (st.state === 'done'){ $('prog').hidden = true; $('go').disabled = !file.files[0]; show(st.result, st); return; }
+  if (st.state === 'error'){ $('progTitle').textContent = 'خطا'; $('progStage').textContent = st.error; $('progBar').style.width = '0'; $('go').disabled = !file.files[0]; return; }
+  $('progTitle').textContent = st.state === 'queued' ? `در صف${st.position ? ` (نفر ${fa(st.position)})` : ''}` : 'در حال پردازش';
+  $('progBar').style.width = Math.round((st.progress||0)*100) + '%';
+  $('progStage').textContent = `${st.stage || ''} · ${fa(Math.round((st.progress||0)*100))}٪`;
+  timer = setTimeout(poll, 2000);
+}
+
+// ---------- results ----------
+function show(r, st){
+  result = r; const a = r.analysis;
+  $('summary').hidden = $('outputs').hidden = $('layersBox').hidden = $('edit').hidden = $('tuneBox').hidden = $('chartBox').hidden = false;
+  $('resTitle').textContent = r.subtitle ? `${r.title} · ${r.subtitle}` : r.title;
+  const f = [
+    {k:'دستگاه یا گام', v:a.scale_fa, s:a.confidence_fa, key:true},
+    {k:'نت پایه', v:a.tonic_fa, s:'از پرتکرارترین نت و ایست جمله‌ها', key:true},
+    {k:'گزینه‌ی بعدی', v:(a.second_fa||'—').replace(/\s*\(.*\)$/,''), s:(a.second_fa||'').match(/\((.*)\)/)?.[1] || ''},
+    {k:'کوک مرجع', v:`لا = ${fa(a.a440.toFixed(1))}`, s:`${a.quarter ? 'ربع‌پرده دارد' : 'بدون ربع‌پرده'}`},
+    {k:'تمپو و وزن', v:a.tempo.free ? 'آزاد' : `${fa(Math.round(a.tempo.bpm))} ضرب`, s:a.tempo.free ? 'بدون خط میزان' : `وزن ${fa(a.tempo.meter)}/۴`},
+    {k:'مدت', v:`${fa(Math.floor(r.duration/60))}:${String(Math.round(r.duration%60)).padStart(2,'0').replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}`, s: r.truncated ? 'فقط بخش اول تحلیل شد' : (st && st.elapsed ? `پردازش در ${fa(Math.round(st.elapsed))} ثانیه` : '')},
+  ];
+  $('facts').innerHTML = f.map(x => `<div class="fact${x.key?' key':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span><span class="s">${x.s}</span></div>`).join('');
+  $('scaleNote').hidden = !a.scale_note; $('scaleNote').textContent = a.scale_note || '';
+  $('methodNote').textContent = a.method_fa + (r.separation && !r.separation.separated ? ' — جداسازی واقعی روی این سرور نصب نیست؛ نتیجه تقریبی است.' : '');
+
+  // downloads
+  const url = (n, dl) => `api/jobs/${job}/file/${n}${dl ? '?download=1' : ''}`;
+  const d = [];
+  if (r.files.pdf) d.push(`<a class="btn primary" href="${url('score.pdf',1)}">دانلود PDF</a>`);
+  d.push(`<a class="btn" href="${url('score.musicxml',1)}">MusicXML</a>`);
+  d.push(`<a class="btn" href="${url('score.mid',1)}">MIDI</a>`);
+  d.push(`<a class="btn" href="api/jobs/${job}/stems.zip">همه‌ی لایه‌ها (ZIP)</a>`);
+  d.push(`<a class="btn" href="${url('score.ly',1)}">منبع LilyPond</a>`);
+  $('downloads').innerHTML = d.join('');
+  $('pdfErr').hidden = !!r.files.pdf;
+  if (!r.files.pdf) $('pdfErr').innerHTML = 'PDF ساخته نشد. ' + (r.pdf_error ? `<pre class="log">${esc(r.pdf_error)}</pre>` : '');
+  const pv = $('pdfview'); pv.hidden = !r.files.pdf; if (r.files.pdf) pv.src = url('score.pdf') + `?t=${Date.now()}`;
+  $('emailBox').hidden = !H.email;
+
+  // layers
+  const inScore = new Set(r.parts.map(p => p.id.replace(/_(rh|lh)$/,'')));
+  const order = ['vocals','centre','other','guitar','piano','sides','bass','drums'];
+  const stems = Object.entries(r.all_stems).sort((x,y) => order.indexOf(x[0]) - order.indexOf(y[0]));
+  $('layers').innerHTML = stems.map(([k,s]) => {
+    const L = r.layers[k];
+    const meta = L ? `${fa(L.count)} نت · ${L.method}` : 'بی‌صدا یا خیلی آرام';
+    return `<div class="layer${s.audible?'':' quiet'}">
+      <label class="name"><input type="checkbox" data-layer="${k}" ${inScore.has(k)?'checked':''} ${L?'':'disabled'}> ${s.name_fa}${k===a.lead?' · ملودی اصلی':''}</label>
+      <span class="meta">${meta} · <a href="${url(s.file,1)}">دانلود</a></span>
+      <audio controls preload="none" src="${url(s.file)}"></audio></div>`;
+  }).join('');
+
+  // edit
+  $('ovScale').innerHTML = SCALES.map(([id,n]) => `<option value="${id}"${id===a.scale_id?' selected':''}>${n}</option>`).join('');
+  $('ovTonic').innerHTML = PC.map((n,i) => `<option value="${i}"${i===a.tonic?' selected':''}>${n}</option>`).join('');
+  $('ovInstr').innerHTML = INSTR.map(([id,n]) => `<option value="${id}"${id===(r.options.instrument||'santur')?' selected':''}>${n}</option>`).join('');
+  $('ovTitle').value = r.title; $('ovNames').checked = r.options.names !== false;
+
+  // tuning table
+  $('tuneTable').innerHTML = '<thead><tr><th>درجه</th><th>نت</th><th>فرکانس (هرتز)</th><th>فاصله از درجه‌ی قبل</th><th>اختلاف با پیانو (سنت)</th></tr></thead><tbody>' +
+    a.tuning_table.map(t => `<tr><td>${t.degree_fa}</td><td${t.quarter?' class="qt"':''}>${t.name}</td><td>${t.hz_fa}</td><td>${t.step}</td><td>⁦${t.dev_fa}⁩</td></tr>`).join('') + '</tbody>';
+  drawHist(); drawContour();
+}
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+$('rerender').addEventListener('click', async () => {
+  const layers = [...document.querySelectorAll('[data-layer]:checked')].map(i => i.dataset.layer);
+  if (!layers.length){ $('editMsg').textContent = 'دست‌کم یک لایه را انتخاب کنید.'; return; }
+  $('rerender').disabled = true; $('editMsg').className = 'msg'; $('editMsg').textContent = 'در حال ساخت پارتیتور…';
+  try {
+    const r = await fetch(`api/jobs/${job}/render`, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({scale:$('ovScale').value, tonic:Number($('ovTonic').value), instrument:$('ovInstr').value,
+                            title:$('ovTitle').value, names:$('ovNames').checked, layers})});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    show(j); $('editMsg').textContent = 'پارتیتور به‌روز شد.';
+  } catch(e){ $('editMsg').className = 'msg bad'; $('editMsg').textContent = e.message || 'ساخت دوباره ناموفق بود.'; }
+  finally { $('rerender').disabled = false; }
+});
+
+$('sendMail').addEventListener('click', async () => {
+  $('mailMsg').className = 'msg'; $('mailMsg').textContent = 'در حال ارسال…';
+  try {
+    const r = await fetch(`api/jobs/${job}/email`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email:$('email2').value})});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    $('mailMsg').textContent = 'ایمیل ارسال شد.';
+  } catch(e){ $('mailMsg').className = 'msg bad'; $('mailMsg').textContent = e.message; }
+});
+
+// ---------- charts ----------
+function fit(cv, h){ const dpr = devicePixelRatio||1, w = cv.clientWidth||600; cv.width = w*dpr; cv.height = h*dpr; cv.style.height = h+'px'; const c = cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); return {c,w,h}; }
+function degSet(){ const a = result.analysis; const deg = {shur:[0,3,6,10,14,16,20],mahur:[0,4,8,10,14,18,22],minor:[0,4,6,10,14,16,20],hminor:[0,4,6,10,14,16,22],homayun:[0,3,8,10,14,16,20],esfahan:[0,4,6,10,14,17,22],segah:[0,3,7,11,14,17,21],chahargah:[0,3,8,10,14,17,22],nava:[0,4,6,10,14,17,20]}[a.scale_id]; return new Set(deg.map(k => (a.tonic+k)%24)); }
+function drawHist(){
+  if (!result) return;
+  const {c,w,h} = fit($('hist'), 190), hist = result.hist, max = Math.max(...hist)||1, degs = degSet(), t = result.analysis.tonic;
+  const padB = 40, padT = 10, bw = (w-20)/24;
+  c.fillStyle = css('--surface'); c.fillRect(0,0,w,h);
+  for (let k=0;k<24;k++){
+    const x = 10 + k*bw, bh = (h-padB-padT)*hist[k]/max, on = degs.has(k);
+    c.fillStyle = on ? (k===t ? css('--saffron') : css('--lapis')) : css('--line');
+    c.fillRect(x+bw*.15, h-padB-bh, bw*.7, bh);
+    if (k%2===0 || on){ c.fillStyle = on ? css('--ink') : css('--muted'); c.font = `${on?600:400} ${Math.min(11,bw*.9)}px Vazirmatn, Tahoma`; c.textAlign = 'center'; c.direction = 'rtl';
+      const parts = PC[k].split(' '); c.fillText(parts[0], x+bw/2, h-padB+15); if (parts[1]) c.fillText({'کرن':'ک','سری':'س','بمل':'♭','دیز':'♯'}[parts[1]]||'', x+bw/2, h-padB+30); }
+  }
+}
+function drawContour(){
+  if (!result) return;
+  const {c,w,h} = fit($('contour'), 220), pts = result.contour.filter(p => p[1] !== null);
+  c.fillStyle = css('--surface'); c.fillRect(0,0,w,h);
+  if (!pts.length) return;
+  const vs = pts.map(p => p[1]/50 + 120).sort((a,b)=>a-b);
+  const lo = Math.floor(vs[Math.floor(vs.length*.02)])-2, hi = Math.ceil(vs[Math.floor(vs.length*.98)])+2, T = result.duration;
+  const padL = 70, Y = v => 10 + (hi-v)/(hi-lo)*(h-34), X = t => 10 + (1 - t/T)*(w-padL-10);
+  const degs = degSet(), tonic = result.analysis.tonic;
+  c.font = '11px Vazirmatn, Tahoma'; c.direction = 'rtl'; c.textAlign = 'left';
+  for (let v=Math.ceil(lo); v<=hi; v++){ const k = ((v%24)+24)%24; if (!degs.has(k)) continue;
+    c.strokeStyle = k===tonic ? css('--saffron') : css('--line'); c.beginPath(); c.moveTo(10, Y(v)+.5); c.lineTo(w-padL, Y(v)+.5); c.stroke();
+    c.fillStyle = k===tonic ? css('--ink') : css('--muted'); c.fillText(PC[k], w-padL+6, Y(v)+4); }
+  c.fillStyle = css('--lapis');
+  for (const [t,cents] of pts){ const v = cents/50+120; if (v<lo||v>hi) continue; c.fillRect(X(t)-1, Y(v)-1, 2, 2); }
+}
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { drawHist(); drawContour(); }, 150); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { drawHist(); drawContour(); });
+
+if (location.hash.length > 5) start(location.hash.slice(1));
+addEventListener('hashchange', () => { if (location.hash.length > 5 && location.hash.slice(1) !== job) start(location.hash.slice(1)); });
+})();
+</script>
+</body>
+</html>
