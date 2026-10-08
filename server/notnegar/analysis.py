@@ -38,6 +38,21 @@ def tuning_offset(cents: np.ndarray, weights: np.ndarray | None = None) -> float
     return float(np.angle(np.sum(w * np.exp(1j * ang))) / (2 * np.pi) * 100)
 
 
+def offset_candidates(cents: np.ndarray, weights: np.ndarray | None = None) -> list[float]:
+    """Two readings of the tuning: naturals on the grid, or the quarter-tones on the grid.
+
+    On the 50-cent grid naturals and quarter-tones agree, so the fine offset is unbiased; which of the
+    two readings is right is decided later by how well the notes fit a dastgah or scale.
+    """
+    m = np.isfinite(cents)
+    if not m.any():
+        return [0.0, 50.0]
+    w = np.ones(m.sum()) if weights is None else weights[m]
+    o50 = float(np.angle(np.sum(w * np.exp(2j * np.pi * cents[m] / 50))) / (2 * np.pi) * 50)
+    alt = o50 + 50 if o50 <= 0 else o50 - 50
+    return [o50, alt]
+
+
 def segment_notes(times: np.ndarray, cents: np.ndarray, offset: float, *, split_cents: float = 65,
                   min_frames: int = 4, max_gap_frames: int = 2) -> list[dict]:
     """Split a contour into steady notes; returns dicts with onset, offset and median cents."""

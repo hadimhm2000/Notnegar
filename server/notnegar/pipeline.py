@@ -10,8 +10,8 @@ from pathlib import Path
 import numpy as np
 
 from . import audio, dsp, lilypond, midi, musicxml
-from .analysis import (Note, has_quarter_tones, pitch_profile, quantize_pitch, rank_scales,
-                       segment_notes, simplify_ornaments, tuning_offset)
+from .analysis import (Note, has_quarter_tones, offset_candidates, pitch_profile, quantize_pitch,
+                       rank_scales, segment_notes, simplify_ornaments)
 from .score import (Part, Score, choose_clef, drum_events, finalize, melody_events, poly_events,
                     split_piano)
 from .separate import STEM_INFO, separate
@@ -102,14 +102,18 @@ def run(input_path: str | Path, job_dir: str | Path, opts: dict | None = None, p
     P(0.55, f"دنبال کردن ملودی اصلی ({STEM_INFO.get(lead_key, {}).get('fa', lead_key)})")
     lead_kind = lead_key if lead_key in MELODIC else "other"
     lead = melodic_layer(stems[lead_key], sr, lead_kind, progress=lambda f: P(0.55 + 0.1 * f, "دنبال کردن ملودی اصلی"))
-    offset = tuning_offset(lead["cents"], lead["conf"])
-    raw = segment_notes(lead["times"], lead["cents"], offset)
-    quarter, qfrac = has_quarter_tones(raw)
     beat_s = 60 / tb["bpm"]
     min_note = _min_note(opts.get("detail", "normal"), beat_s)
-    lead_notes = simplify_ornaments(quantize_pitch(raw, quarter), min_note)
-    hist, fin, n_fin = pitch_profile(lead_notes)
-    ranking = rank_scales(hist, fin, quarter, n_fin)
+    best = None
+    for off in offset_candidates(lead["cents"], lead["conf"]):
+        raw = segment_notes(lead["times"], lead["cents"], off)
+        q, qf = has_quarter_tones(raw)
+        nts = simplify_ornaments(quantize_pitch(raw, q), min_note)
+        h, f, nf = pitch_profile(nts)
+        rk = rank_scales(h, f, q, nf)
+        if rk and (best is None or rk[0].score > best[0]):
+            best = (rk[0].score, off, q, qf, nts, h, rk)
+    _, offset, quarter, qfrac, lead_notes, hist, ranking = best
 
     # 4. the other layers
     layers = {lead_key: {"kind": "melody", "notes": lead_notes, "method": lead["method"]}}

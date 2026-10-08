@@ -395,11 +395,12 @@ async function analyze(audio){
   for (let t=0;t<nF;t++) if (pick[t] >= 0 && energy[t] > eGate && chosenS[t] > 0.22*sRef){ cents[t] = candC[t*KC+pick[t]]; conf[t] = Math.min(1, chosenS[t]/sRef); }
   if (cents.filter(v => !isNaN(v)).length < 20){ setStatus('ملودی واضحی پیدا نشد. فایلی با آواز یا ساز تکنواز مشخص‌تر امتحان کنید.', 0); return; }
 
-  // 4. reference tuning on the semitone grid (koron notes sit opposite and do not bias it)
+  // 4. reference tuning: the fine offset on the 50-cent grid (naturals and quarter-tones agree there);
+  //    whether naturals or quarter-tones sit on the grid is decided by which reading fits a scale best
   let cs = 0, sn = 0;
-  for (let t=0;t<nF;t++) if (!isNaN(cents[t])){ const a = 2*Math.PI*cents[t]/100; cs += conf[t]*Math.cos(a); sn += conf[t]*Math.sin(a); }
-  const offset = Math.atan2(sn, cs)/(2*Math.PI)*100;
-
+  for (let t=0;t<nF;t++) if (!isNaN(cents[t])){ const a = 2*Math.PI*cents[t]/50; cs += conf[t]*Math.cos(a); sn += conf[t]*Math.sin(a); }
+  const o50 = Math.atan2(sn, cs)/(2*Math.PI)*50;
+  const evalOffset = offset => {
   // 5. notes: split where pitch moves away from the running note centre or the voice stops
   let raw = [], cur = null, gap = 0;
   const close = () => { if (cur && cur.v.length >= 4) raw.push({t0: cur.s*dt, t1: (cur.e+1)*dt, med: median(cur.v)}); cur = null; };
@@ -458,6 +459,11 @@ async function analyze(audio){
   scores.sort((a,b) => b.s - a.s);
   const ex = scores.map(r => Math.exp(r.s/0.035)), exT = ex.reduce((a,b)=>a+b,0);
   scores.forEach((r,i) => r.p = ex[i]/exT);
+  return {offset, notes, quarter, qFrac, hist, fin, scores};
+  };
+  const cand = [evalOffset(o50), evalOffset(o50 <= 0 ? o50 + 50 : o50 - 50)].filter(r => r.scores.length);
+  const best = cand.sort((a,b) => b.scores[0].s - a.scores[0].s)[0];
+  const {offset, notes, quarter, qFrac, hist, fin, scores} = best;
 
   // 9. tempo from the beat of the whole recording (spectral flux), with beat phase
   const nov = new Float32Array(nF);

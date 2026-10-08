@@ -39,21 +39,28 @@ def basic_pitch_available() -> bool:
 
 
 def contour(x: np.ndarray, sr: int, fmin: float, fmax: float, use_side: bool = False, progress=None):
-    """Pitch contour of a melodic layer: (times, cents rel. C4 or NaN, confidence, method)."""
+    """Pitch contour of a melodic layer: (times, cents rel. C4 or NaN, confidence, method).
+
+    The harmonic-salience tracker decides which note is sounding (robust against octave and fifth
+    errors); where CREPE is installed and agrees within 80 cents, CREPE's finer pitch is used.
+    """
     mono = dsp.to_mono(x)
-    if crepe_available() and os.environ.get("NOTNEGAR_DISABLE_CREPE") != "1":
-        try:
-            t, c, conf = _crepe(mono, sr, fmin, fmax)
-            voiced = np.isfinite(c).sum()
-            # CREPE sometimes rejects clean or synthetic sources almost entirely; keep it only if it found a line
-            if voiced * (t[1] - t[0] if len(t) > 1 else 0.01) > 0.5 or audio_is_quiet(mono):
-                return t, c, conf, "crepe"
-            log.info("CREPE found only %d voiced frames; using the salience tracker", voiced)
-        except Exception as e:  # pragma: no cover
-            log.exception("CREPE failed, using the salience tracker: %s", e)
     side = (x[0] - x[1]) / 2 if (use_side and x.ndim == 2) else None
     t, c, conf = dsp.melody_salience(mono, sr, side=side, fmin=max(30.0, fmin), fmax=fmax, progress=progress)
-    return t, c, conf, "salience"
+    method = "salience"
+    if crepe_available() and os.environ.get("NOTNEGAR_DISABLE_CREPE") != "1" and not audio_is_quiet(mono):
+        try:
+            tc, cc, _ = _crepe(mono, sr, fmin, fmax)
+            if len(tc) > 1:
+                idx = np.clip(np.round(t / (tc[1] - tc[0])).astype(int), 0, len(tc) - 1)
+                cr = cc[idx]
+                agree = np.isfinite(c) & np.isfinite(cr) & (np.abs(cr - c) < 80)
+                c = np.where(agree, cr, c)
+                if agree.sum() > 0.3 * np.isfinite(c).sum():
+                    method = "salience+crepe"
+        except Exception as e:  # pragma: no cover
+            log.exception("CREPE failed, using the salience tracker only: %s", e)
+    return t, c, conf, method
 
 
 def audio_is_quiet(mono: np.ndarray) -> bool:
