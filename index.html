@@ -89,7 +89,7 @@ canvas{display:block;width:100%;max-width:100%}
       <h2>آهنگ و درخواست</h2>
       <div class="drop" id="drop">
         <strong>فایل صوتی را اینجا رها کنید</strong>
-        <small>MP3، WAV، OGG یا M4A · دو دقیقه‌ی اول تحلیل می‌شود</small>
+        <small>MP3، WAV، OGG یا M4A · تا چهار دقیقه تحلیل می‌شود</small>
         <div class="btns" style="justify-content:center">
           <button type="button" id="pick">انتخاب فایل</button>
           <button type="button" id="sample">نمونه‌ی شور</button>
@@ -168,7 +168,7 @@ canvas{display:block;width:100%;max-width:100%}
         <canvas id="contour" height="220"></canvas>
       </section>
 
-      <p class="note">محدودیت این نسخه: سازها از هم جدا نمی‌شوند و ملودی غالبِ کل صدا نت‌نویسی می‌شود؛ تقسیم ریتمی ساده‌شده است و نت‌های عبور از میزان به هم وصل نمی‌شوند. نسخه‌ی کامل این بخش‌ها را روی سرور انجام می‌دهد.</p>
+      <p class="note">محدودیت این نسخه: ملودی اصلی با تکیه بر صدای وسط تصویر استریو و جمع هارمونیک‌ها پیدا می‌شود، نه با جداسازی کامل سازها؛ در آهنگ‌های شلوغ ممکن است بخش‌هایی از ساز همراه هم وارد نت شود. تقسیم ریتمی ساده‌شده است و نت‌های عبور از میزان به هم وصل نمی‌شوند.</p>
     </main>
   </div>
 </div>
@@ -194,7 +194,9 @@ const INTERVAL = {2:'نیم پرده',3:'سه‌ربع پرده',4:'یک پرد�
 
 const DASTGAH = [
   {id:'shur', name:'شور', deg:[0,3,6,10,14,16,20], note:'آوازهای ابوعطا، دشتی، بیات ترک و افشاری هم از همین مجموعه‌ی نت‌ها ساخته شده‌اند؛ تفاوتشان در شاهد، ایست و گوشه‌هاست.'},
-  {id:'mahur', name:'ماهور', deg:[0,4,8,10,14,18,22], note:'راست‌پنجگاه هم همین نت‌ها را دارد و تفاوتش در شاهد و مسیر گوشه‌هاست.'},
+  {id:'mahur', name:'ماهور', deg:[0,4,8,10,14,18,22], note:'ماهور همان گام ماژور غربی است. راست‌پنجگاه هم همین نت‌ها را دارد و تفاوتش در شاهد و مسیر گوشه‌هاست.'},
+  {id:'minor', name:'مینور', deg:[0,4,6,10,14,16,20], note:'گام مینور غربی، که در موسیقی پاپ ایرانی رایج است و ربع‌پرده ندارد.'},
+  {id:'hminor', name:'مینور هارمونیک', deg:[0,4,6,10,14,16,22], note:'در تنظیم‌های پاپ، بیات اصفهان اغلب به همین شکل و بدون ربع‌پرده اجرا می‌شود.'},
   {id:'homayun', name:'همایون', deg:[0,3,8,10,14,16,20], note:'بیات اصفهان از متعلقات همایون است و نت‌های مشترک زیادی با آن دارد.'},
   {id:'esfahan', name:'بیات اصفهان', deg:[0,4,6,10,14,17,22], note:'بیات اصفهان از متعلقات همایون است و نت‌های مشترک زیادی با آن دارد.'},
   {id:'segah', name:'سه‌گاه', deg:[0,3,7,11,14,17,21], note:''},
@@ -204,7 +206,7 @@ const DASTGAH = [
 const ALLOWED = [0.25,0.5,0.75,1,1.5,2,3,4];
 
 /* ---------- state ---------- */
-const S = { buffer:null, srcLabel:'', A:null, R:null, playing:null };
+const S = { buffer:null, srcLabel:'', A:null, R:null, playing:null, titleAuto:true };
 
 /* ---------- UI helpers ---------- */
 function setStatus(t, p){ $('statusText').textContent = t; $('prog').style.width = (p==null?0:Math.round(p*100))+'%'; }
@@ -224,7 +226,7 @@ async function fromFile(file){
     const buf = await file.arrayBuffer();
     const audio = await getCtx().decodeAudioData(buf);
     S.buffer = audio; S.srcLabel = file.name;
-    if (!$('title').value) $('title').value = file.name.replace(/\.[^.]+$/,'');
+    if (S.titleAuto || !$('title').value.trim()){ $('title').value = file.name.replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim(); S.titleAuto = true; }
     await analyze(audio);
   }catch(e){
     console.error(e);
@@ -266,135 +268,266 @@ async function makeSample(){
 }
 
 /* ---------- analysis ---------- */
+// in-place radix-2 FFT
+function makeFFT(N){
+  const lv = Math.log2(N), cos = new Float64Array(N/2), sin = new Float64Array(N/2), rev = new Uint32Array(N);
+  for (let i=0;i<N/2;i++){ cos[i] = Math.cos(2*Math.PI*i/N); sin[i] = Math.sin(2*Math.PI*i/N); }
+  for (let i=0;i<N;i++){ let r=0; for (let b=0;b<lv;b++) r = (r<<1) | ((i>>b)&1); rev[i] = r; }
+  return (re, im) => {
+    for (let i=0;i<N;i++){ const j = rev[i]; if (j>i){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; } }
+    for (let size=2; size<=N; size*=2){
+      const half = size/2, step = N/size;
+      for (let i=0;i<N;i+=size) for (let j=i,k=0;j<i+half;j++,k+=step){
+        const l = j+half, tr = re[l]*cos[k] + im[l]*sin[k], ti = -re[l]*sin[k] + im[l]*cos[k];
+        re[l] = re[j]-tr; im[l] = im[j]-ti; re[j] += tr; im[j] += ti;
+      }
+    }
+  };
+}
+const pct = (arr, p) => { const a = Array.from(arr).filter(v => isFinite(v)).sort((x,y)=>x-y); return a.length ? a[Math.min(a.length-1, Math.floor(a.length*p))] : 0; };
+const median = a => { const s = [...a].sort((x,y)=>x-y); return s.length ? s[s.length>>1] : NaN; };
+
 async function analyze(audio){
   $('pdf').disabled = true; $('play').disabled = true; $('playOrig').disabled = true;
-  setStatus('در حال آماده‌سازی صدا…', 0.05); await nextTick();
-  // mono + decimate to ~11 kHz
-  const maxSec = 120, srIn = audio.sampleRate, nIn = Math.min(audio.length, Math.floor(maxSec*srIn));
-  const mono = new Float32Array(nIn);
-  for (let c=0;c<audio.numberOfChannels;c++){ const d = audio.getChannelData(c); for (let i=0;i<nIn;i++) mono[i] += d[i]/audio.numberOfChannels; }
-  const fct = Math.max(1, Math.round(srIn/11025)), sr = srIn/fct, n = Math.floor(nIn/fct);
-  const x = new Float32Array(n);
-  for (let i=0;i<n;i++){ let s=0; for (let j=0;j<fct;j++) s += mono[i*fct+j]; x[i] = s/fct; }
+  setStatus('در حال آماده‌سازی صدا…', 0.03); await nextTick();
 
-  // YIN pitch tracking
-  const W = 512, hop = 256, tauMin = Math.floor(sr/1100), tauMax = Math.floor(sr/70);
-  const nF = Math.max(0, Math.floor((n - W - tauMax)/hop));
-  const f0 = new Float32Array(nF), conf = new Float32Array(nF), rms = new Float32Array(nF);
-  const d = new Float32Array(tauMax+1);
-  for (let fI=0; fI<nF; fI++){
-    const s0 = fI*hop;
-    let e = 0; for (let j=0;j<W;j++) e += x[s0+j]*x[s0+j]; rms[fI] = Math.sqrt(e/W);
-    let run = 0; d[0] = 1;
-    for (let tau=1; tau<=tauMax; tau++){
-      let sum = 0; for (let j=0;j<W;j++){ const df = x[s0+j]-x[s0+j+tau]; sum += df*df; }
-      run += sum; d[tau] = run>0 ? sum*tau/run : 1;
-    }
-    let best = -1;
-    for (let tau=tauMin; tau<tauMax; tau++){ if (d[tau] < 0.15){ while (tau+1<tauMax && d[tau+1]<d[tau]) tau++; best = tau; break; } }
-    if (best < 0){ let m = 1e9; for (let tau=tauMin;tau<tauMax;tau++) if (d[tau]<m){ m=d[tau]; best=tau; } if (m > 0.3) best = -1; }
-    if (best > 0){
-      const a = d[best-1], b = d[best], c = d[best+1]; const den = a - 2*b + c;
-      const tt = den ? best + 0.5*(a-c)/den : best;
-      f0[fI] = sr/tt; conf[fI] = Math.max(0, 1 - b);
-    }
-    if (fI % 150 === 0){ setStatus('ردیابی ارتفاع صدا…', 0.08 + 0.72*fI/nF); await nextTick(); }
+  // 1. mid (centre: usually the voice or solo) and side (instruments panned wide), ~12 kHz
+  const maxSec = 240, srIn = audio.sampleRate, nIn = Math.min(audio.length, Math.floor(maxSec*srIn));
+  const L = audio.getChannelData(0), Rc = audio.numberOfChannels > 1 ? audio.getChannelData(1) : null;
+  const fct = Math.max(1, Math.round(srIn/12000)), sr = srIn/fct, n = Math.floor(nIn/fct);
+  const mid = new Float32Array(n), side = Rc ? new Float32Array(n) : null;
+  for (let i=0;i<n;i++){
+    let a=0, b=0;
+    for (let j=0;j<fct;j++){ const l = L[i*fct+j], r = Rc ? Rc[i*fct+j] : l; a += l+r; b += l-r; }
+    mid[i] = a/(2*fct); if (side) side[i] = b/(2*fct);
   }
-  setStatus('تشخیص دستگاه و نت پایه…', 0.85); await nextTick();
-  const dt = hop/sr;
-  const sorted = Array.from(rms).sort((a,b)=>a-b), gate = 0.12*(sorted[Math.floor(sorted.length*0.95)]||0);
-  const cents = new Float32Array(nF).fill(NaN);
-  for (let i=0;i<nF;i++) if (f0[i] && rms[i] > gate && conf[i] > 0.6) cents[i] = 1200*Math.log2(f0[i]/C4);
 
-  // global tuning offset on a 50-cent grid (circular mean)
-  let cs=0, sn=0;
-  for (let i=0;i<nF;i++) if (!isNaN(cents[i])){ const ang = 2*Math.PI*cents[i]/50; cs += conf[i]*Math.cos(ang); sn += conf[i]*Math.sin(ang); }
-  const offset = Math.atan2(sn, cs)/(2*Math.PI)*50;
+  // 2. short-time spectra → harmonic salience (predominant-melody) + spectral flux (beat)
+  const N = 2048, hop = 256, dt = hop/sr, fft = makeFFT(N);
+  const nF = Math.max(0, Math.floor((n - N)/hop) + 1);
+  const win = new Float64Array(N); for (let i=0;i<N;i++) win[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/N);
+  const re = new Float64Array(N), im = new Float64Array(N), re2 = new Float64Array(N), im2 = new Float64Array(N);
+  const H = N/2, binHz = sr/N, kLo = Math.max(2, Math.ceil(80/binHz)), kHi = Math.min(H-2, Math.floor(5000/binHz));
+  const mag = new Float64Array(H), cmag = new Float64Array(H), logM = new Float64Array(H), prevLog = new Float64Array(H);
+  const B = 432;                                      // 10-cent bins from 110 Hz (A2) upward, 3.6 octaves
+  const prior = new Float64Array(B);
+  for (let b=0;b<B;b++){ const f = 110*Math.pow(2,b/120); prior[b] = (f < 160 ? Math.pow(f/160, 2) : 1) * (f > 1000 ? Math.pow(1000/f, 1.5) : 1); }
+  const sal = new Float64Array(B);
+  const KC = 5, candC = new Float32Array(nF*KC).fill(NaN), candS = new Float32Array(nF*KC);
+  const flux = new Float32Array(nF), energy = new Float32Array(nF);
+  const pkF = new Float64Array(60), pkA = new Float64Array(60);
 
-  // quarter-tone index per frame (96 = C4), median-smoothed
-  const qRaw = Array.from(cents, c => isNaN(c) ? null : Math.round((c - offset)/50) + 96);
-  const q = qRaw.map((v,i) => { if (v===null) return null; const w=[]; for (let k=-2;k<=2;k++){ const u=qRaw[i+k]; if (u!=null) w.push(u); } if (w.length<3) return v; w.sort((a,b)=>a-b); return w[w.length>>1]; });
+  for (let t=0; t<nF; t++){
+    const s0 = t*hop;
+    for (let i=0;i<N;i++){ re[i] = mid[s0+i]*win[i]; im[i] = 0; }
+    fft(re, im);
+    if (side){ for (let i=0;i<N;i++){ re2[i] = side[s0+i]*win[i]; im2[i] = 0; } fft(re2, im2); }
+    let fx = 0, en = 0, mx = 0;
+    for (let k=1;k<H;k++){
+      const m = Math.hypot(re[k], im[k]); mag[k] = m;
+      // keep what is in the centre of the stereo image
+      const c = side ? Math.max(0, m - 0.8*Math.hypot(re2[k], im2[k])) : m; cmag[k] = c;
+      const lg = Math.log1p(1000*m); logM[k] = lg; const d = lg - prevLog[k]; if (d > 0) fx += d; prevLog[k] = lg;
+      if (k >= kLo && k <= kHi){ if (c > mx) mx = c; const f = k*binHz; if (f > 150 && f < 1600) en += c*c; }
+    }
+    flux[t] = fx; energy[t] = en;
+    // spectral peaks of the centre signal
+    let np = 0;
+    for (let k=kLo;k<=kHi;k++){
+      const c = cmag[k];
+      if (c > mx*0.02 && c > cmag[k-1] && c >= cmag[k+1]){
+        const a = Math.log(cmag[k-1]+1e-12), b = Math.log(c+1e-12), g = Math.log(cmag[k+1]+1e-12), den = a - 2*b + g;
+        const dlt = den < 0 ? 0.5*(a-g)/den : 0;
+        const fp = (k+dlt)*binHz, ap = Math.exp(b - 0.25*(a-g)*dlt);
+        if (np < 60){ pkF[np] = fp; pkA[np] = ap; np++; }
+        else { let mi=0; for (let q=1;q<60;q++) if (pkA[q] < pkA[mi]) mi = q; if (ap > pkA[mi]){ pkF[mi] = fp; pkA[mi] = ap; } }
+      }
+    }
+    // harmonic summation
+    sal.fill(0);
+    for (let p=0;p<np;p++){
+      const fp = pkF[p], ap = Math.sqrt(pkA[p]);
+      for (let h=1; h<=8; h++){
+        const fc = fp/h; if (fc < 100) break; if (fc > 1300) continue;
+        const cb = 120*Math.log2(fc/110), hw = Math.pow(0.8, h-1)*ap;
+        for (let b=Math.ceil(cb-4.5); b<=Math.floor(cb+4.5); b++){
+          if (b < 0 || b >= B) continue;
+          const d = (b - cb)/4.5, w = Math.cos(Math.PI*d/2); sal[b] += hw*w*w;
+        }
+      }
+    }
+    // top candidates (local maxima), refined by parabola
+    const tops = [];
+    for (let b=1;b<B-1;b++){ const v = sal[b]*prior[b]; if (v > 0 && v >= sal[b-1]*prior[b-1] && v > sal[b+1]*prior[b+1]) tops.push(b); }
+    tops.sort((x,y) => sal[y]*prior[y] - sal[x]*prior[x]);
+    for (let j=0;j<Math.min(KC, tops.length);j++){
+      const b = tops[j], a = sal[b-1]*prior[b-1], v = sal[b]*prior[b], g = sal[b+1]*prior[b+1], den = a - 2*v + g;
+      const off = den < 0 ? 0.5*(a-g)/den : 0;
+      candC[t*KC+j] = -1500 + (b+off)*10;            // cents relative to C4 (A2 = −1500)
+      candS[t*KC+j] = v;
+    }
+    if (t % 200 === 0){ setStatus('پیدا کردن ملودی اصلی در میان سازها…', 0.06 + 0.66*t/nF); await nextTick(); }
+  }
+  setStatus('دنبال کردن خط ملودی…', 0.75); await nextTick();
 
-  // histogram over pitch classes
-  const hist = new Float64Array(24); let ht = 0;
-  q.forEach((v,i) => { if (v!=null){ hist[((v%24)+24)%24] += conf[i]; ht += conf[i]; } });
-  if (ht < 1){ setStatus('ملودی واضحی پیدا نشد. فایلی با آواز یا ساز تکنواز مشخص‌تر امتحان کنید.', 0); return; }
-  for (let k=0;k<24;k++) hist[k] /= ht;
+  // 3. melody contour: Viterbi over candidates, penalising big jumps
+  const lam = 0.45;
+  const dp = new Float64Array(nF*KC).fill(-Infinity), bp = new Int16Array(nF*KC).fill(-1);
+  for (let t=0;t<nF;t++){
+    for (let j=0;j<KC;j++){
+      const c = candC[t*KC+j]; if (isNaN(c)) continue;
+      const ls = Math.log(candS[t*KC+j] + 1e-9);
+      let best = 0, bi = -1;
+      if (t > 0) for (let i=0;i<KC;i++){ const pc = candC[(t-1)*KC+i]; if (isNaN(pc)) continue; const v = dp[(t-1)*KC+i] - lam*Math.abs(c-pc)/100; if (bi < 0 || v > best){ best = v; bi = i; } }
+      dp[t*KC+j] = ls + (bi < 0 ? 0 : best); bp[t*KC+j] = bi;
+      if (bi < 0) dp[t*KC+j] = ls + (t > 0 ? Math.max(...Array.from({length:KC}, (_,i) => dp[(t-1)*KC+i]).filter(isFinite), 0) : 0);
+    }
+  }
+  const pick = new Int16Array(nF).fill(-1);
+  { let j = -1, bv = -Infinity; for (let k=0;k<KC;k++) if (dp[(nF-1)*KC+k] > bv){ bv = dp[(nF-1)*KC+k]; j = k; }
+    for (let t=nF-1;t>=0;t--){ if (j < 0){ let bv2 = -Infinity; for (let k=0;k<KC;k++) if (dp[t*KC+k] > bv2){ bv2 = dp[t*KC+k]; j = k; } } pick[t] = j; j = j >= 0 ? bp[t*KC+j] : -1; } }
 
-  // note segmentation
-  const notes = []; let cur = null, gap = 0;
-  const close = () => { if (cur && cur.len >= 3) notes.push({q:cur.q, t0:cur.s*dt, t1:(cur.s+cur.len)*dt}); cur = null; };
-  for (let i=0;i<nF;i++){
-    const v = q[i];
-    if (v==null){ if (cur){ gap++; if (gap>2) close(); } continue; }
-    if (cur && (v===cur.q || (q[i+1]===cur.q && Math.abs(v-cur.q)<=4))){ cur.len = i - cur.s + 1; gap = 0; }
-    else { close(); cur = {q:v, s:i, len:1}; gap = 0; }
+  // voicing: enough centre energy and salience
+  const eGate = 0.04*pct(energy, 0.9);
+  const chosenS = new Float32Array(nF); for (let t=0;t<nF;t++) chosenS[t] = pick[t] >= 0 ? candS[t*KC+pick[t]] : 0;
+  const sRef = pct(Array.from(chosenS).filter((v,t) => energy[t] > eGate), 0.75);
+  const cents = new Float32Array(nF).fill(NaN), conf = new Float32Array(nF);
+  for (let t=0;t<nF;t++) if (pick[t] >= 0 && energy[t] > eGate && chosenS[t] > 0.22*sRef){ cents[t] = candC[t*KC+pick[t]]; conf[t] = Math.min(1, chosenS[t]/sRef); }
+  if (cents.filter(v => !isNaN(v)).length < 20){ setStatus('ملودی واضحی پیدا نشد. فایلی با آواز یا ساز تکنواز مشخص‌تر امتحان کنید.', 0); return; }
+
+  // 4. reference tuning on the semitone grid (koron notes sit opposite and do not bias it)
+  let cs = 0, sn = 0;
+  for (let t=0;t<nF;t++) if (!isNaN(cents[t])){ const a = 2*Math.PI*cents[t]/100; cs += conf[t]*Math.cos(a); sn += conf[t]*Math.sin(a); }
+  const offset = Math.atan2(sn, cs)/(2*Math.PI)*100;
+
+  // 5. notes: split where pitch moves away from the running note centre or the voice stops
+  let raw = [], cur = null, gap = 0;
+  const close = () => { if (cur && cur.v.length >= 4) raw.push({t0: cur.s*dt, t1: (cur.e+1)*dt, med: median(cur.v)}); cur = null; };
+  for (let t=0;t<nF;t++){
+    const c = cents[t] - offset;
+    if (isNaN(c)){ if (cur && ++gap > 2) close(); continue; }
+    gap = 0;
+    if (cur){
+      const ref = cur.sum/cur.v.length;
+      if (Math.abs(c - ref) < 65){ cur.v.push(c); cur.sum += c; cur.e = t; continue; }
+      close();
+    }
+    cur = {s:t, e:t, v:[c], sum:c};
   }
   close();
+  // merge touching fragments of the same pitch
+  const merged = [];
+  for (const nt of raw){ const pv = merged[merged.length-1]; if (pv && nt.t0 - pv.t1 < 0.03 && Math.abs(nt.med - pv.med) < 35){ pv.med = (pv.med*(pv.t1-pv.t0) + nt.med*(nt.t1-nt.t0))/(nt.t1-pv.t0); pv.t1 = nt.t1; } else merged.push({...nt}); }
+  // octave errors: fold notes that sit an octave away from their neighbours
+  merged.forEach((nt,i) => { const nb = merged.slice(Math.max(0,i-4), i+5).filter(x => x !== nt).map(x => x.med); if (nb.length < 3) return; const m = median(nb); while (nt.med - m > 850) nt.med -= 1200; while (m - nt.med > 850) nt.med += 1200; });
 
-  // phrase finals: notes followed by a pause, weighted by length
-  const fin = new Float64Array(24); let ft = 0;
-  notes.forEach((nt,i) => { const nx = notes[i+1]; if (!nx || nx.t0 - nt.t1 > 0.28){ const w = nt.t1-nt.t0 + (nx?0:0.5); fin[((nt.q%24)+24)%24] += w; ft += w; } });
-  if (ft) for (let k=0;k<24;k++) fin[k] /= ft;
+  // 6. are there quarter-tones? judged on whole notes, not frames
+  let qd = 0, td = 0; const qpc = new Float64Array(24);
+  merged.forEach(nt => { const d = nt.t1 - nt.t0, dev = nt.med - Math.round(nt.med/100)*100; td += d; if (Math.abs(dev) >= 30){ qd += d; qpc[(((Math.round(nt.med/50))%24)+24)%24] += d; } });
+  const qFrac = td ? qd/td : 0, qTop = qd ? Math.max(...qpc)/qd : 0;
+  const quarter = qFrac > 0.1 && qTop > 0.3;
+  const notes = merged.map(nt => {
+    const s100 = Math.round(nt.med/100)*100, dev = nt.med - s100;
+    const q = (quarter && Math.abs(dev) >= 28 ? Math.round(nt.med/50) : s100/50) + 96;
+    return {q, t0: nt.t0, t1: nt.t1, med: nt.med};
+  });
 
-  // dastgah scoring over every possible tonic
-  const scores = DASTGAH.map(D => {
+  // 7. pitch-class histogram (by note duration) and phrase finals
+  const hist = new Float64Array(24), fin = new Float64Array(24); let ht = 0, ft = 0;
+  notes.forEach((nt,i) => {
+    const k = ((nt.q%24)+24)%24, d = nt.t1 - nt.t0; hist[k] += d; ht += d;
+    const nx = notes[i+1]; if (!nx || nx.t0 - nt.t1 > 0.3){ const w = d + (nx ? 0 : 0.5); fin[k] += w; ft += w; }
+  });
+  for (let k=0;k<24;k++){ hist[k] /= ht || 1; fin[k] /= ft || 1; }
+
+  // 8. dastgah / scale: every template at every tonic; without quarter-tones only 12-tone scales qualify
+  const scores = [];
+  for (const D of DASTGAH){
     const mask = new Array(24).fill(false); D.deg.forEach(k => mask[k] = true);
+    const needsQ = D.deg.some(k => k%2);
     let best = {s:-1e9, t:0};
     for (let t=0;t<24;t++){
+      if (!quarter && (needsQ || t%2)) continue;
       let s = 0; for (let k=0;k<24;k++) s += hist[k] * (mask[((k-t)%24+24)%24] ? 1 : -1.3);
       s += 0.55*hist[t] + 0.75*fin[t];
       if (s > best.s) best = {s, t};
     }
-    return {D, s:best.s, t:best.t};
-  }).sort((a,b) => b.s - a.s);
+    if (best.s > -1e9) scores.push({D, s:best.s, t:best.t});
+  }
+  scores.sort((a,b) => b.s - a.s);
   const ex = scores.map(r => Math.exp(r.s/0.035)), exT = ex.reduce((a,b)=>a+b,0);
   scores.forEach((r,i) => r.p = ex[i]/exT);
 
-  // tempo from note onsets
-  const res = 0.01, len = Math.ceil((notes.length ? notes[notes.length-1].t1 : 1)/res)+10, imp = new Float32Array(len);
-  notes.forEach(nt => { const c = Math.round(nt.t0/res); for (let k=-3;k<=3;k++) if (c+k>=0 && c+k<len) imp[c+k] += Math.exp(-k*k/4); });
-  let ac0 = 0; for (let i=0;i<len;i++) ac0 += imp[i]*imp[i];
-  const acAt = L => { let s=0; for (let i=0;i+L<len;i++) s += imp[i]*imp[i+L]; return s; };
-  let bestB = {v:-1, lag:0};
-  for (let L=Math.round(0.33/res); L<=Math.round(1.2/res); L++){ const bpm = 60/(L*res); const w = Math.exp(-0.5*Math.pow(Math.log2(bpm/100)/0.7,2)); const v = acAt(L)*w; if (v > bestB.v) bestB = {v, lag:L}; }
-  const tconf = ac0 ? acAt(bestB.lag)/ac0 : 0;
-  const free = notes.length < 8 || tconf < 0.18;
-  const bpm = free ? 60 : Math.round(60/(bestB.lag*res));
-  const lag = bestB.lag, a2 = acAt(2*lag), a3 = acAt(3*lag), a4 = acAt(4*lag);
-  const barBeats = free ? 0 : (a3 > a4*1.1 && a3 > a2*0.9 ? 3 : (a4 >= a2*0.8 ? 4 : 2));
+  // 9. tempo from the beat of the whole recording (spectral flux), with beat phase
+  const nov = new Float32Array(nF);
+  for (let t=0;t<nF;t++){ let m = 0, c = 0; for (let k=Math.max(0,t-8); k<=Math.min(nF-1,t+8); k++){ m += flux[k]; c++; } nov[t] = Math.max(0, flux[t] - m/c); }
+  const acAt = Lg => { let s = 0; for (let t=0;t+Lg<nF;t++) s += nov[t]*nov[t+Lg]; return s; };
+  const ac0 = acAt(0) || 1;
+  let bestL = 0, bestV = -1;
+  for (let Lg=Math.round(0.3/dt); Lg<=Math.round(1.5/dt); Lg++){ const bpm = 60/(Lg*dt); const w = Math.exp(-0.5*Math.pow(Math.log2(bpm/110)/0.9, 2)); const v = acAt(Lg)*w; if (v > bestV){ bestV = v; bestL = Lg; } }
+  const a1 = acAt(bestL-1), a2c = acAt(bestL), a3c = acAt(bestL+1), dd = a1 - 2*a2c + a3c;
+  const Lf = bestL + (dd < 0 ? 0.5*(a1-a3c)/dd : 0);
+  const tconf = a2c/ac0;
+  const free = notes.length < 8 || tconf < 0.25;
+  const bpm = free ? 60 : Math.round(60/(Lf*dt));
+  let phase = 0;
+  if (!free){ let bv = -1; for (let ph=0; ph<bestL; ph++){ let s = 0; for (let t=ph; t<nF; t+=Lf) s += nov[Math.round(t)] || 0; if (s > bv){ bv = s; phase = ph*dt; } } }
+  const r2 = acAt(Math.round(2*Lf)), r3 = acAt(Math.round(3*Lf)), r4 = acAt(Math.round(4*Lf));
+  const barBeats = free ? 0 : (r3 > r4*1.15 && r3 > r2*0.95 ? 3 : 4);
 
-  S.A = {nF, dt, cents, offset, hist, fin, notes, scores, bpm, free, barBeats, tconf, duration: nF*dt, truncated: audio.length > maxSec*srIn};
+  S.A = {nF, dt, cents, offset, hist, fin, notes, scores, bpm, free, barBeats, phase, tconf, quarter, qFrac,
+         duration: nF*dt, truncated: audio.length > maxSec*srIn};
   resolve();
   setStatus('تحلیل کامل شد.', 1);
   $('pdf').disabled = false; $('play').disabled = !S.R.items.length; $('playOrig').disabled = !S.buffer;
 }
 
 /* ---------- apply user overrides, build notation ---------- */
+const NAT = {C:0,D:4,E:8,F:10,G:14,A:18,B:22};
+const ACC_OF = {'-2':'b','-1':'k','0':'','1':'s','2':'#'};
+// spell every pitch class in the context of the chosen scale: scale degrees take consecutive letters
+function keySpeller(D, tonic){
+  const map = {};
+  const t0 = SPELL[tonic%24], li = LETTERS.indexOf(t0[0]);
+  D.deg.forEach((k,i) => {
+    const pc = (tonic+k)%24, letter = LETTERS[(li+i)%7];
+    const diff = ((pc - NAT[letter] + 36) % 24) - 12;
+    if (ACC_OF[diff] !== undefined) map[pc] = {letter, acc: ACC_OF[diff], diff};
+  });
+  const spellQ = q => {
+    const pc = ((q%24)+24)%24, m = map[pc];
+    if (m) return {letter: m.letter, acc: m.acc, oct: Math.floor((q - m.diff - NAT[m.letter])/24)};
+    return spell(q);
+  };
+  const name = k => { const s = spellQ(96 + (((k%24)+24)%24)); return FA_LETTER[s.letter] + FA_ACC[s.acc]; };
+  return {map, spellQ, name};
+}
+
 function resolve(){
   const A = S.A; if (!A) return;
   const ovD = $('ovD').value, ovT = $('ovT').value;
   let pick = A.scores[0];
-  if (ovD !== 'auto') pick = A.scores.find(r => r.D.id === ovD);
+  if (ovD !== 'auto') pick = A.scores.find(r => r.D.id === ovD) || {D: DASTGAH.find(d => d.id === ovD), t: pick.t, p: 0};
   const D = pick.D, tonic = ovT !== 'auto' ? Number(ovT) : pick.t;
-  const second = A.scores.find(r => r !== pick);
+  const second = A.scores.find(r => r.D !== pick.D);
+  const K = keySpeller(D, tonic);
 
-  // key signature from the dastgah's degrees
+  // key signature from the scale's spelled degrees
   const sig = {};
-  D.deg.forEach(k => { const s = SPELL[(tonic+k)%24]; if (s[1]) sig[s[0]] = s[1]; });
+  Object.values(K.map).forEach(m => { if (m.acc) sig[m.letter] = m.acc; });
 
-  // rhythm quantisation
+  // rhythm quantisation on the detected beat grid
   const beat = 60/A.bpm, ns = A.notes;
   const items = [];
   if (ns.length){
-    const t00 = ns[0].t0;
+    const t00 = A.free ? ns[0].t0 : A.phase + Math.floor((ns[0].t0 - A.phase)/beat)*beat;
     const qb = ns.map(nt => Math.round((nt.t0 - t00)/beat*4)/4);
     const snap = v => ALLOWED.reduce((a,b) => Math.abs(b-v) < Math.abs(a-v) ? b : a);
     const restSplit = v => { const out=[]; for (const r of [4,2,1,0.5,0.25]) while (v >= r - 1e-6){ out.push(r); v -= r; } return out; };
-    // octave placement for treble clef
-    const med = ns.map(nt=>nt.q).sort((a,b)=>a-b)[ns.length>>1];
+    const med = median(ns.map(nt => nt.q));
     const shift = Math.round((118 - med)/24)*24;
     A.shift = shift;
+    if (qb[0] >= 0.25) restSplit(qb[0]).forEach(r => items.push({type:'rest', dur:r}));
     for (let i=0;i<ns.length;i++){
       const ioi = i+1<ns.length ? qb[i+1]-qb[i] : snap((ns[i].t1-ns[i].t0)/beat);
       if (ioi <= 0) continue;
@@ -406,14 +539,13 @@ function resolve(){
       if (rest >= 0.5) restSplit(Math.min(rest, 8)).forEach(r => items.push({type:'rest', dur:r}));
     }
   }
-  // bar lines
   const withBars = [];
   let acc = 0;
   items.forEach(it => { withBars.push(it); if (A.barBeats){ acc += it.dur; while (acc >= A.barBeats - 1e-6){ withBars.push({type:'bar'}); acc -= A.barBeats; } } });
   if (!withBars.length || withBars[withBars.length-1].type !== 'bar') withBars.push({type:'bar'});
   withBars[withBars.length-1].final = true;
 
-  S.R = {D, tonic, pick, second, sig, items: withBars, auto: ovD==='auto' && ovT==='auto'};
+  S.R = {D, tonic, pick, second, sig, K, items: withBars, auto: ovD==='auto' && ovT==='auto'};
   render();
 }
 
@@ -425,13 +557,13 @@ function tuningRows(){
     const c = (qAbs-96)*50 + off;
     const hz = C4 * Math.pow(2, c/1200);
     const pianoDev = c - Math.round(c/100)*100;
-    return {deg: i+1, name: pcName(tonic+k), hz, step: i ? INTERVAL[k - arr[i-1]] || '' : '—', dev: pianoDev, quarter: (tonic+k)%2 === 1};
+    return {deg: i+1, name: S.R.K.name(tonic+k), hz, step: i ? INTERVAL[k - arr[i-1]] || '' : '—', dev: pianoDev, quarter: (tonic+k)%2 === 1};
   });
   return rows;
 }
 function tuningIntro(){
-  const {D, tonic} = S.R, A = S.A, t = pcName(tonic);
-  const qs = D.deg.filter(k => (tonic+k)%2===1).map(k => pcName(tonic+k));
+  const {D, tonic} = S.R, A = S.A, t = S.R.K.name(tonic);
+  const qs = D.deg.filter(k => (tonic+k)%2===1).map(k => S.R.K.name(tonic+k));
   const offTxt = Math.abs(A.offset) >= 3 ? ` کوک کلی ضبط ${fa(Math.abs(Math.round(A.offset)))} سنت ${A.offset>0?'بالاتر':'پایین‌تر'} از لا ۴۴۰ است؛ اعداد جدول همین را لحاظ کرده‌اند.` : ' ضبط تقریباً روی لا ۴۴۰ کوک شده است.';
   const qTxt = qs.length ? ` نت‌های ربع‌پرده‌ای: ${qs.join('، ')}.` : '';
   switch ($('instr').value){
@@ -451,11 +583,11 @@ function render(){
   const notesQ = A.notes.map(n=>n.q); const lo = Math.min(...notesQ), hi = Math.max(...notesQ);
   const facts = [
     {k:'دستگاه', v:`${R.D.name}`, s: R.auto ? `اطمینان ${pct(R.pick.p)}` : 'انتخاب‌شده توسط شما', m: R.auto ? R.pick.p : null, key:true},
-    {k:'نت پایه', v: pcName(R.tonic), s: R.auto ? 'از ایست جمله‌ها و پرتکرارترین نت' : 'انتخاب‌شده توسط شما', key:true},
-    {k:'گزینه‌ی بعدی', v: R.second ? `${R.second.D.name} ${pcName(R.second.t)}` : '—', s: R.second ? `احتمال ${pct(R.second.p)}` : ''},
-    {k:'کوک مرجع', v: `لا = ${fa((440*Math.pow(2,A.offset/1200)).toFixed(1))}`, s: `${signed(A.offset)} سنت نسبت به ۴۴۰ هرتز`},
+    {k:'نت پایه', v: S.R.K.name(R.tonic), s: R.auto ? 'از ایست جمله‌ها و پرتکرارترین نت' : 'انتخاب‌شده توسط شما', key:true},
+    {k:'گزینه‌ی بعدی', v: R.second ? `${R.second.D.name} ${keySpeller(R.second.D, R.second.t).name(R.second.t)}` : '—', s: R.second ? `احتمال ${pct(R.second.p)}` : ''},
+    {k:'کوک مرجع', v: `لا = ${fa((440*Math.pow(2,A.offset/1200)).toFixed(1))}`, s: `${signed(A.offset)} سنت نسبت به ۴۴۰ · ${A.quarter ? 'ربع‌پرده دارد' : 'بدون ربع‌پرده'}`},
     {k:'تمپو و وزن', v: A.free ? 'آزاد' : `${fa(A.bpm)} ضرب`, s: A.free ? 'ضرب منظمی پیدا نشد؛ بدون خط میزان' : `وزن پیشنهادی ${fa(A.barBeats)}/۴`},
-    {k:'گستره‌ی ملودی', v: `${pcName(lo)} تا ${pcName(hi)}`, s: `${fa(Math.round((hi-lo)/2))} نیم‌پرده · ${fa(A.notes.length)} نت`},
+    {k:'گستره‌ی ملودی', v: `${S.R.K.name(lo)} تا ${S.R.K.name(hi)}`, s: `${fa(Math.round((hi-lo)/2))} نیم‌پرده · ${fa(A.notes.length)} نت`},
   ];
   $('facts').innerHTML = facts.map(f => `<div class="fact${f.key?' key':''}"><span class="k">${f.k}</span><span class="v">${f.v}</span><span class="s">${f.s}</span>${f.m!=null?`<span class="meter"><i style="width:${Math.round(f.m*100)}%"></i></span>`:''}</div>`).join('');
   const fn = R.D.note; $('familyNote').hidden = !fn; $('familyNote').textContent = fn || '';
@@ -466,7 +598,7 @@ function render(){
     rows.map(r => `<tr><td>${fa(r.deg)}</td><td${r.quarter?' class="qt"':''}>${r.name}</td><td>${fa(r.hz.toFixed(1))}</td><td>${r.step}</td><td>${signed(r.dev)}</td></tr>`).join('') + '</tbody>';
 
   $('legend').innerHTML = `<span>سرکلید: ${Object.keys(R.sig).length ? Object.entries(R.sig).map(([l,a]) => FA_LETTER[l]+FA_ACC[a]).join('، ') : 'بدون علامت'}</span><span>علامت کرن: بمل با پرچم مثلثی</span><span>علامت سری: یک خط عمودی با دو خط مورب</span>`;
-  $('scoreNote').textContent = (A.shift ? `نت‌ها ${fa(Math.abs(A.shift/24))} اکتاو ${A.shift>0?'بالاتر':'پایین‌تر'} از صدای واقعی نوشته شده‌اند تا در کلید سل خوانا باشند. ` : '') + (A.truncated ? 'فقط دو دقیقه‌ی اول فایل تحلیل شده است.' : '');
+  $('scoreNote').textContent = (A.shift ? `نت‌ها ${fa(Math.abs(A.shift/24))} اکتاو ${A.shift>0?'بالاتر':'پایین‌تر'} از صدای واقعی نوشته شده‌اند تا در کلید سل خوانا باشند. ` : '') + (A.truncated ? 'فقط چهار دقیقه‌ی اول فایل تحلیل شده است.' : '');
   drawPreview(); drawHist($('hist'), themeColors()); drawContour($('contour'), themeColors());
 }
 
@@ -493,8 +625,8 @@ function drawHist(cv, C, fixed){
     if (k%2===0 || on){
       ctx.save(); ctx.fillStyle = on ? C.ink : C.muted; ctx.font = `${on?600:400} ${Math.min(11, bw*0.9)}px Vazirmatn, Tahoma, sans-serif`;
       ctx.textAlign='center'; ctx.direction='rtl';
-      const s = SPELL[k]; ctx.fillText(FA_LETTER[s[0]], x+bw/2, h-padB+16);
-      if (s[1]) ctx.fillText(SHORT_ACC[s[1]], x+bw/2, h-padB+30);
+      const s = S.R.K.spellQ(96+k); ctx.fillText(FA_LETTER[s.letter], x+bw/2, h-padB+16);
+      if (s.acc) ctx.fillText(SHORT_ACC[s.acc], x+bw/2, h-padB+30);
       ctx.restore();
     }
   }
@@ -515,7 +647,7 @@ function drawContour(cv, C, fixed){
     const k = ((v%24)+24)%24; if (!D.deg.some(d => (tonic+d)%24===k)) continue;
     ctx.strokeStyle = k===tonic ? C.accent2 : C.line; ctx.lineWidth = k===tonic ? 1.2 : 1;
     ctx.beginPath(); ctx.moveTo(padR, Y(v)+.5); ctx.lineTo(w-padL, Y(v)+.5); ctx.stroke();
-    ctx.fillStyle = k===tonic ? C.ink : C.muted; ctx.fillText(pcName(k), w-padL+6, Y(v)+4);
+    ctx.fillStyle = k===tonic ? C.ink : C.muted; ctx.fillText(S.R.K.name(k), w-padL+6, Y(v)+4);
   }
   ctx.fillStyle = C.accent;
   for (let i=0;i<nF;i++){ if (isNaN(cents[i])) continue; const v = (cents[i]-offset)/50+96; if (v<lo||v>hi) continue; ctx.fillRect(X(i*dt)-0.8, Y(v)-0.8, 1.6, 1.6); }
@@ -534,7 +666,7 @@ function layout(items, width, sp, sig, timeSig){
   const nSig = Object.keys(sig).length;
   const head = first => sp*(3.6 + 1.25*nSig + (first && timeSig ? 2.4 : 0) + 1);
   const wOf = it => it.type==='bar' ? sp*1.4 : it.type==='rest' ? sp*(2.0 + 1.3*Math.sqrt(it.dur)) :
-     sp*(2.2 + 1.6*Math.sqrt(it.dur)) + (shownAcc(spell(it.q), sig) ? sp*1.3 : 0);
+     sp*(2.2 + 1.6*Math.sqrt(it.dur)) + (shownAcc(S.R.K.spellQ(it.q), sig) ? sp*1.3 : 0);
   const systems = []; let cur = {items:[], first:true, used:head(true)};
   for (const it of items){
     const ww = wOf(it);
@@ -608,7 +740,7 @@ function drawSystem(ctx, sys, x0, yTop, width, sp, C, opts){
       ctx.restore(); x += w; continue;
     }
     if (it.type==='rest'){ drawRest(ctx, it.dur, x + sp*0.4, yTop, sp, C); x += w; continue; }
-    const s = spell(it.q), st = stepOf(s), y = Ystep(st);
+    const s = S.R.K.spellQ(it.q), st = stepOf(s), y = Ystep(st);
     let hx = x + sp*0.9;
     const acc = shownAcc(s, sig);
     if (acc){ drawAcc(ctx, acc, x + sp*0.1, y, sp, C); hx += sp*1.3; }
@@ -668,15 +800,15 @@ async function buildPdf(){
   const title = $('title').value.trim() || 'بدون عنوان', artist = $('artist').value.trim();
   T(ctx, title, R0, y + 26, '700 50px "Noto Naskh Arabic", serif', C.ink); y += 64;
   const instrName = $('instr').selectedOptions[0].textContent;
-  T(ctx, [artist, `${R.D.name} ${pcName(R.tonic)}`, `برای ${instrName}`].filter(Boolean).join('  ·  '), R0, y + 10, '500 21px Vazirmatn, sans-serif', C.muted); y += 34;
+  T(ctx, [artist, `${R.D.name} ${S.R.K.name(R.tonic)}`, `برای ${instrName}`].filter(Boolean).join('  ·  '), R0, y + 10, '500 21px Vazirmatn, sans-serif', C.muted); y += 34;
   ctx.fillStyle = C.accent; ctx.fillRect(M, y, inner, 3); y += 44;
 
   // summary grid
   const cells = [
     ['دستگاه', R.D.name, R.auto ? `اطمینان ${fa(Math.round(R.pick.p*100))}٪` : 'تعیین‌شده توسط کاربر'],
-    ['نت پایه', pcName(R.tonic), R.auto ? 'تشخیص خودکار' : 'تعیین‌شده توسط کاربر'],
-    ['گزینه‌ی بعدی', R.second ? `${R.second.D.name} ${pcName(R.second.t)}` : '—', R.second ? `${fa(Math.round(R.second.p*100))}٪` : ''],
-    ['کوک مرجع', `لا = ${fa((440*Math.pow(2,A.offset/1200)).toFixed(1))} هرتز`, `${signed(A.offset)} سنت نسبت به ۴۴۰`],
+    ['نت پایه', S.R.K.name(R.tonic), R.auto ? 'تشخیص خودکار' : 'تعیین‌شده توسط کاربر'],
+    ['گزینه‌ی بعدی', R.second ? `${R.second.D.name} ${keySpeller(R.second.D, R.second.t).name(R.second.t)}` : '—', R.second ? `${fa(Math.round(R.second.p*100))}٪` : ''],
+    ['کوک مرجع', `لا = ${fa((440*Math.pow(2,A.offset/1200)).toFixed(1))} هرتز`, `${signed(A.offset)} سنت · ${A.quarter ? 'ربع‌پرده دارد' : 'بدون ربع‌پرده'}`],
     ['تمپو', A.free ? 'آزاد' : `${fa(A.bpm)} ضرب در دقیقه`, A.free ? 'بدون میزان‌بندی' : `وزن ${fa(A.barBeats)}/۴`],
     ['تعداد نت', fa(A.notes.length), `${fa(Math.round(A.duration))} ثانیه تحلیل‌شده`],
   ];
@@ -739,7 +871,7 @@ async function buildPdf(){
   // footers
   pages.forEach((cv,i) => {
     const c = cv.getContext('2d');
-    T(c, `${title} · ${R.D.name} ${pcName(R.tonic)}`, R0, PH - 48, '400 15px Vazirmatn, sans-serif', C.muted);
+    T(c, `${title} · ${R.D.name} ${S.R.K.name(R.tonic)}`, R0, PH - 48, '400 15px Vazirmatn, sans-serif', C.muted);
     T(c, `صفحه‌ی ${fa(i+1)} از ${fa(pages.length)} · نت‌نگار، نسخه‌ی آزمایشی`, M, PH - 48, '400 15px Vazirmatn, sans-serif', C.muted, 'left');
   });
 
@@ -829,6 +961,7 @@ const drop = $('drop');
 ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f){ stopPlay(); $('ovD').value='auto'; $('ovT').value='auto'; fromFile(f); } });
 $('sample').addEventListener('click', loadSample);
+$('title').addEventListener('input', () => { S.titleAuto = false; });
 ['ovD','ovT'].forEach(id => $(id).addEventListener('change', () => { stopPlay(); resolve(); }));
 ['instr','optNames'].forEach(id => $(id).addEventListener('change', () => S.R && render()));
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => S.R && render(), 150); });
@@ -840,7 +973,7 @@ async function loadSample(){
   setStatus('در حال ساخت نمونه‌ی ساختگی در شور…', 0.02);
   const buf = await makeSample();
   S.buffer = buf; S.srcLabel = 'نمونه‌ی ساختگی: ملودی شور با واخوان و ضرب';
-  $('title').value = 'نمونه در شور';
+  if (S.titleAuto || !$('title').value.trim()){ $('title').value = 'نمونه در شور'; S.titleAuto = true; }
   await analyze(buf);
 }
 (document.fonts?.ready || Promise.resolve()).then(loadSample);
