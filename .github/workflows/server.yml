@@ -108,7 +108,14 @@ jobs:
       - name: install
         shell: powershell
         run: |
-          .\server\deploy\install-windows.ps1 -Source $env:GITHUB_WORKSPACE -InstallDir C:\nn
+          Start-Transcript -Path $env:RUNNER_TEMP\install.log | Out-Null
+          $failed = $false
+          try { .\server\deploy\install-windows.ps1 -Source $env:GITHUB_WORKSPACE -InstallDir C:\nn }
+          catch { $failed = $true; Write-Host "EXCEPTION: $($_.Exception.Message) at $($_.InvocationInfo.PositionMessage)" }
+          Stop-Transcript | Out-Null
+          $tail = (Get-Content $env:RUNNER_TEMP\install.log -Tail 60) -join "%0A"
+          if ($failed) { Write-Host "::error title=windows install::$tail"; exit 1 }
+          Write-Host "::notice title=windows install::$tail"
       - name: smoke test through the startup task
         shell: powershell
         run: |
