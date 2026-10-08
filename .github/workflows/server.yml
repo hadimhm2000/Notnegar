@@ -23,6 +23,12 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg lilypond fonts-noto-core fonts-dejavu-core
           sudo apt-get install -y --no-install-recommends fonts-vazirmatn || true
           lilypond --version | head -1
+      - name: lilypond persian definitions
+        run: |
+          P=$(find /usr/share/lilypond -name persian.ly | head -1)
+          python3 -c "import sys; t=open(sys.argv[1]).read(); e=lambda s: s.replace('%','%25').replace(chr(10),'%0A'); print('::notice title=persian.ly part1::'+e(t[:7000])); print('::notice title=persian.ly part2::'+e(t[7000:14000]))" "$P"
+          F=$(find /usr/share/lilypond -name 'emmentaler-20.otf' | head -1)
+          echo "::notice title=glyphs::$(strings "$F" | grep -i -E 'koron|sori|accidentals\.(flat|sharp|natural|mirrored)' | sort -u | tr '\n' ' ' | head -c 3000)"
       - run: pip install -r server/requirements.txt pytest
       - name: tests
         working-directory: server

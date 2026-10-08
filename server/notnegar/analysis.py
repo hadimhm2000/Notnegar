@@ -165,7 +165,7 @@ def rank_scales(hist: np.ndarray, fin: np.ndarray, quarter: bool, n_fin: int = 1
     The note set decides the family; the tonic terms (most frequent note, phrase endings) only
     break ties, and phrase endings count less when there are few of them.
     """
-    fin_w = 0.4 * min(1.0, n_fin / 12)
+    fin_w = 0.4 * min(1.0, n_fin / 6)
     res = []
     for sc in SCALES:
         mask = np.zeros(24, bool)
