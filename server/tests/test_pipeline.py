@@ -52,7 +52,10 @@ def _check(res, exp, job: Path):
     assert ly.count("{") == ly.count("}"), "unbalanced braces in LilyPond source"
     assert ly.count("<<") == ly.count(">>")
     if exp["quarter"]:
-        assert "eh" in ly, "quarter-tone note names missing"
+        assert any(f"{l}k" in ly or f"{l}o" in ly for l in "abcdefg"), "quarter-tone note names missing"
+        if lilypond.lily_available():
+            log = (job / "lilypond.log").read_text()
+            assert "cannot find glyph" not in log and "alteration not found" not in log, log[-2000:]
     if lilypond.lily_available():
         assert (job / "score.pdf").exists(), (job / "lilypond.log").read_text()[-3000:]
     data = json.loads((job / "analysis.json").read_text(encoding="utf-8"))
@@ -83,8 +86,8 @@ def test_speller_and_pitch_names():
     assert sp.name(17) == "لا کرن"
     from notnegar.score import Score
     sc = Score("t", "", 90, 4, SCALE_BY_ID["shur"], 14, sp, [], 0.66, 0)
-    assert lilypond.pitch(sc, 137) == "aeh'"                  # A4 koron
-    assert lilypond.pitch(sc, 140) == "bes'"                  # B4 flat
+    assert lilypond.pitch(sc, 137) == "ak'"                   # A4 koron (persian.ly names)
+    assert lilypond.pitch(sc, 140) == "bf'"                   # B4 flat
     assert lilypond.pitch(sc, 120) == "c'"
 
 

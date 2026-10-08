@@ -203,7 +203,7 @@ def tempo_and_beat(x: np.ndarray, sr: int) -> dict:
     return {"bpm": float(bpm), "phase": float(phase), "confidence": float(conf), "meter": meter}
 
 
-def onsets(x: np.ndarray, sr: int, threshold: float = 1.5) -> list[tuple[float, float]]:
+def onsets(x: np.ndarray, sr: int, threshold: float = 3.0) -> list[tuple[float, float]]:
     """Peak-picked onsets (time, strength) — used for the percussion part."""
     nov, dt = spectral_flux(x, sr)
     if not nov.size:
@@ -212,10 +212,11 @@ def onsets(x: np.ndarray, sr: int, threshold: float = 1.5) -> list[tuple[float, 
     thr = threshold * (med + 1e-9)
     out, last = [], -1.0
     peak_ref = np.percentile(nov, 99) + 1e-9
+    thr = max(thr, 0.12 * peak_ref)
     for i in range(1, len(nov) - 1):
         if nov[i] > thr and nov[i] >= nov[i - 1] and nov[i] > nov[i + 1]:
             t = i * dt
-            if t - last > 0.06:
+            if t - last > 0.09:
                 out.append((t, float(min(1, nov[i] / peak_ref))))
                 last = t
     return out

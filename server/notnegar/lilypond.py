@@ -11,16 +11,13 @@ from .theory import FA_LETTER, SHORT_ACC
 
 FONT = os.environ.get("NOTNEGAR_FONT", "Vazirmatn, Noto Naskh Arabic, Noto Sans Arabic, DejaVu Sans")
 LY_DUR = {4: "1", 3: "2.", 2: "2", 1.5: "4.", 1: "4", 0.75: "8.", 0.5: "8", 0.25: "16"}
-ACC_SUFFIX = {"": "", "b": "es", "#": "is", "k": "eh", "s": "ih"}      # nederlands names
-ACC_ALTER = {"b": "-1/2", "#": "1/2", "k": "-1/4", "s": "1/4"}
+ACC_SUFFIX = {"": "", "b": "f", "#": "s", "k": "k", "s": "o"}           # LilyPond persian.ly note names
+ACC_ALTER = {"b": ",FLAT", "#": ",SHARP", "k": ",KORON", "s": ",SORI"}  # constants defined by persian.ly
 STEP = {"C": 0, "D": 1, "E": 2, "F": 3, "G": 4, "A": 5, "B": 6}
+SHORT_NAME = {"vocals": "آواز", "other": "سازها", "guitar": "گیتار", "piano": "پیانو", "bass": "بیس",
+              "drums": "ضرب", "centre": "وسط", "sides": "کناری"}
 CLEF = {"treble": "treble", "treble_8": "treble_8", "bass": "bass", "bass_8": "bass_8", "percussion": "percussion"}
 
-GLYPHS = """#'((0 . "accidentals.natural") (-1/2 . "accidentals.flat") (1/2 . "accidentals.sharp")
-                    (-1/4 . "accidentals.koron") (1/4 . "accidentals.sori")
-                    (-1 . "accidentals.flatflat") (1 . "accidentals.doublesharp"))"""
-KEY_ORDER = ("#'(" + " ".join(f"({s} . -1/2) ({s} . -1/4)" for s in (6, 2, 5, 1, 4, 0, 3))
-             + " " + " ".join(f"({s} . 1/2) ({s} . 1/4)" for s in (3, 0, 4, 1, 5, 2, 6)) + ")")
 
 
 def lily_available() -> bool:
@@ -35,10 +32,6 @@ def q(s: str) -> str:
 def pitch(sc: Score, qt: int) -> str:
     letter, acc, octave = sc.speller.spell(qt)
     name = letter.lower() + ACC_SUFFIX[acc]
-    if name == "ees":
-        name = "es"
-    elif name == "aes":
-        name = "as"
     marks = octave - 3
     return name + ("'" * marks if marks > 0 else "," * (-marks))
 
@@ -105,7 +98,7 @@ def lyrics_for(part: Part) -> str:
 def _key_alterations(sc: Score) -> str:
     sig = sc.speller.key_signature()
     items = [f"({STEP[l]} . {ACC_ALTER[a]})" for l, a in sig.items() if a in ACC_ALTER]
-    return "#'(" + " ".join(items) + ")"
+    return "#`(" + " ".join(items) + ")"
 
 
 def _fa(s) -> str:
@@ -151,7 +144,7 @@ def build(sc: Score, opts: dict | None = None) -> str:
     opts = opts or {}
     names = opts.get("names", True)
     meter = sc.meter
-    global_lines = ["\\language \"nederlands\""]
+    global_lines = ['\\include "persian.ly"']
     g = []
     if meter:
         g.append(f"\\time {meter}/4")
@@ -166,7 +159,8 @@ def build(sc: Score, opts: dict | None = None) -> str:
     for p in sc.parts:
         vname = "v" + p.id.replace("_", "")
         inst = f"\\markup \\override #'(font-name . {q(FONT)}) {q(p.name_fa)}"
-        with_names = "" if p.group else f"instrumentName = {inst} shortInstrumentName = {inst} "
+        short = f"\\markup \\override #'(font-name . {q(FONT)}) {q(SHORT_NAME.get(p.id.split('_')[0], p.name_fa))}"
+        with_names = "" if p.group else f"instrumentName = {inst} shortInstrumentName = {short} "
         staff_type = "RhythmicStaff" if p.kind == "drums" else "Staff"
         body = part_music(sc, p)
         st = (f"\\new {staff_type} = {q(p.id)} \\with {{ {with_names}}}\n"
@@ -180,7 +174,7 @@ def build(sc: Score, opts: dict | None = None) -> str:
         if p.group:
             groups.setdefault(p.group, []).append(st)
             if len(groups[p.group]) == 2:
-                staves.append(f"\\new PianoStaff \\with {{ instrumentName = {inst} shortInstrumentName = {inst} }} <<\n    "
+                staves.append(f"\\new PianoStaff \\with {{ instrumentName = {inst} shortInstrumentName = {short} }} <<\n    "
                               + "\n    ".join(groups[p.group]) + "\n  >>")
         else:
             staves.append(st)
@@ -216,11 +210,7 @@ global = {{ {" ".join(g)} }}
   {chr(10).join("  " + s for s in staves)}
   >>
   \\layout {{
-    \\context {{ \\Score
-      keyAlterationOrder = {KEY_ORDER}
-      \\override BarNumber.font-size = #-2
-    }}
-    \\context {{ \\Staff alterationGlyphs = {GLYPHS} }}
+    \\context {{ \\Score \\override BarNumber.font-size = #-2 }}
     \\context {{ \\Voice
       \\remove Note_heads_engraver \\consists Completion_heads_engraver
       \\remove Rest_engraver \\consists Completion_rest_engraver
