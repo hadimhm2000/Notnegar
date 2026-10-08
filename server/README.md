@@ -70,7 +70,24 @@ cd Notnegar && git pull
 cd server && docker compose up -d --build
 ```
 
-## نصب بدون Docker
+## نصب روی ویندوز سرور
+
+برای Windows Server 2016 تا 2025 و ویندوز ۱۰ و ۱۱. PowerShell را **با Run as administrator** باز کنید و این سه خط را بزنید:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+irm https://raw.githubusercontent.com/hadimhm2000/Notnegar/main/server/deploy/install-windows.ps1 -OutFile install.ps1
+.\install.ps1
+```
+
+نصب‌کننده Python، ffmpeg، LilyPond، فونت وزیرمتن، PyTorch و مدل‌ها را در `C:\notnegar` نصب می‌کند، سرور را به‌صورت خودکار با روشن شدن ویندوز اجرا می‌کند و پورت ۸۰۰۰ را در فایروال ویندوز باز می‌کند. نصب اول، بسته به سرعت اینترنت، ۱۵ تا ۴۰ دقیقه طول می‌کشد. در پایان نشانی سایت نمایش داده می‌شود.
+
+- تنظیمات: `C:\notnegar\notnegar.env` (بعد از تغییر: `Stop-ScheduledTask Notnegar; Start-ScheduledTask Notnegar`)
+- لاگ: `C:\notnegar\logs\server.log`
+- به‌روزرسانی: همان دستور `.\install.ps1` را دوباره اجرا کنید؛ تنظیمات و فایل‌ها حفظ می‌شوند.
+- اگر پنل ارائه‌دهنده‌ی VPS فایروال جداگانه دارد، پورت ۸۰۰۰ را آنجا هم باز کنید.
+
+## نصب بدون Docker (لینوکس)
 
 روی Ubuntu 22.04 یا 24.04 یا Debian 12:
 
