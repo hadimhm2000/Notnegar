@@ -2,8 +2,12 @@ name: server
 
 on:
   push:
+    branches: [main]
     paths: ["server/**", ".github/workflows/server.yml"]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   core:
@@ -23,7 +27,10 @@ jobs:
       - name: tests
         working-directory: server
         env: { NOTNEGAR_TEST_OUT: "${{ github.workspace }}/out" }
-        run: python -m pytest -q tests
+        run: python -m pytest -q -rA --tb=short tests 2>&1 | tee ../pytest.log; exit ${PIPESTATUS[0]}
+      - name: report
+        if: always()
+        run: python server/tests/ci_report.py pytest.log out core
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: core-output, path: "out/**/job/score.*\nout/**/job/lilypond.log\nout/**/job/analysis.json", if-no-files-found: ignore }
@@ -53,7 +60,23 @@ jobs:
       - name: tests
         working-directory: server
         env: { NOTNEGAR_TEST_OUT: "${{ github.workspace }}/out" }
-        run: python -m pytest -q -s tests
+        run: python -m pytest -q -rA --tb=short tests 2>&1 | tee ../pytest.log; exit ${PIPESTATUS[0]}
+      - name: report
+        if: always()
+        run: python server/tests/ci_report.py pytest.log out full
+      - name: publish rendered pages for review
+        if: always()
+        run: |
+          sudo apt-get install -y --no-install-recommends poppler-utils >/dev/null
+          mkdir -p review
+          for f in out/*/job/score.pdf; do [ -f "$f" ] && pdftoppm -r 70 -png "$f" "review/$(basename $(dirname $(dirname $f)))"; done
+          cp out/*/job/score.ly review/ 2>/dev/null || true
+          for f in out/*/job/score.ly; do cp "$f" "review/$(basename $(dirname $(dirname $f))).ly"; done 2>/dev/null || true
+          for f in out/*/job/analysis.json; do cp "$f" "review/$(basename $(dirname $(dirname $f))).json"; done 2>/dev/null || true
+          cp pytest.log review/ || true
+          cd review && git init -q && git checkout -q -b ci-output && git add -A
+          git -c user.name=ci -c user.email=ci@localhost commit -qm "CI output ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-output
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: full-output, path: "out/**/job/score.*\nout/**/job/lilypond.log\nout/**/job/analysis.json", if-no-files-found: ignore }
