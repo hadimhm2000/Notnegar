@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Notnegar: Persian music analysis and transcription — dastgah, tonic, tuning, tempo and printable sheet music.">
+<title>نت‌نگار</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&family=Noto+Naskh+Arabic:wght@500;700&family=Vazirmatn:wght@400;500;700&display=swap">
+<style>
+/* Layout: a working desk — controls in a narrow column on the right (RTL), results stacked on the left; stacks to one column on phones. */
+:root{
+  --paper:#F3F4F7; --surface:#FFFFFF; --ink:#172033; --muted:#5A6378; --line:#DADFE8;
+  --lapis:#2847A8; --lapis-soft:#E5EAF8; --saffron:#B4760B; --saffron-soft:#F8EEDB;
+  --good:#2D7A4E; --warn:#A86A06;
+  --display:"Noto Naskh Arabic", "Vazirmatn", serif;
+  --body:"Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+  --music:"Noto Music", serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0F131C; --surface:#171D29; --ink:#E5E9F1; --muted:#9AA3B6; --line:#2A3242;
+  --lapis:#8EA6FF; --lapis-soft:#1F2A4A; --saffron:#E3A944; --saffron-soft:#3A2D14;
+  --good:#6CC395; --warn:#E3A944; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#0F131C; --surface:#171D29; --ink:#E5E9F1; --muted:#9AA3B6; --line:#2A3242;
+  --lapis:#8EA6FF; --lapis-soft:#1F2A4A; --saffron:#E3A944; --saffron-soft:#3A2D14;
+  --good:#6CC395; --warn:#E3A944; color-scheme:dark }
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.75}
+.app{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:28px 56px;display:grid;gap:24px}
+header{display:grid;gap:4px}
+header h1{font-family:var(--display);font-weight:700;font-size:2.1rem;margin:0;line-height:1.3;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.desk{display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.desk{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:14px;min-width:0}
+.panel h2{font-family:var(--display);font-size:1.2rem;margin:0;font-weight:700}
+aside.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:860px){aside.panel{position:static}}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:16px;text-align:center;display:grid;gap:8px;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--lapis);background:var(--lapis-soft)}
+.drop small{color:var(--muted)}
+label.f{display:grid;gap:4px;font-size:.88rem;color:var(--muted)}
+input[type=text],select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:7px;padding:7px 10px;min-width:0}
+.checks{display:grid;gap:6px;font-size:.92rem}
+.checks label{display:flex;gap:8px;align-items:center}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:inherit;cursor:pointer;border-radius:7px;padding:9px 14px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+button.primary{background:var(--lapis);border-color:var(--lapis);color:var(--surface);font-weight:700}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--lapis);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.status{display:flex;gap:10px;align-items:center;font-size:.92rem;color:var(--muted);min-height:1.8em}
+.bar{flex:1;height:4px;background:var(--line);border-radius:2px;overflow:hidden;max-width:220px}
+.bar i{display:block;height:100%;width:0;background:var(--lapis);transition:width .2s}
+.results{display:grid;gap:20px;min-width:0}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.fact{border-inline-start:3px solid var(--line);padding-inline-start:12px;display:grid;gap:2px}
+.fact.key{border-color:var(--lapis)}
+.fact .k{font-size:.8rem;color:var(--muted);letter-spacing:.02em}
+.fact .v{font-family:var(--display);font-size:1.45rem;font-weight:700;line-height:1.4}
+.fact .s{font-size:.85rem;color:var(--muted)}
+.meter{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:4px}
+.meter i{display:block;height:100%;background:var(--lapis)}
+.note{font-size:.88rem;color:var(--muted);margin:0}
+.flag{background:var(--saffron-soft);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:.9rem}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.92rem}
+th,td{padding:7px 10px;text-align:start;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:.82rem}
+td.qt{color:var(--saffron);font-weight:700}
+canvas{display:block;width:100%;max-width:100%}
+.scorewrap{background:var(--surface);border-radius:8px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:.85rem;color:var(--muted)}
+.override{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app" dir="rtl" lang="fa">
+  <header>
+    <h1>نت‌نگار</h1>
+    <p>آهنگ را بدهید؛ دستگاه، نت پایه، کوک و تمپو را تشخیص می‌دهد، نت ملودی را با کرن و سری می‌نویسد و یک PDF آماده‌ی چاپ می‌سازد. این نسخه‌ی آزمایشی است و همه‌چیز در مرورگر خودتان پردازش می‌شود.</p>
+  </header>
+
+  <div class="desk">
+    <aside class="panel">
+      <h2>آهنگ و درخواست</h2>
+      <div class="drop" id="drop">
+        <strong>فایل صوتی را اینجا رها کنید</strong>
+        <small>MP3، WAV، OGG یا M4A · دو دقیقه‌ی اول تحلیل می‌شود</small>
+        <div class="btns" style="justify-content:center">
+          <button type="button" id="pick">انتخاب فایل</button>
+          <button type="button" id="sample">نمونه‌ی شور</button>
+        </div>
+        <input type="file" id="file" accept="audio/*" hidden>
+      </div>
+
+      <label class="f" for="title">عنوان قطعه
+        <input type="text" id="title" placeholder="مثلاً: چهارمضراب شور">
+      </label>
+      <label class="f" for="artist">آهنگساز یا اجراکننده
+        <input type="text" id="artist" placeholder="اختیاری">
+      </label>
+      <label class="f" for="instr">ساز شما
+        <select id="instr">
+          <option value="santur">سنتور</option>
+          <option value="tar">تار و سه‌تار</option>
+          <option value="kamancheh">کمانچه</option>
+          <option value="ney">نی</option>
+          <option value="piano">پیانو یا ساز غربی</option>
+        </select>
+      </label>
+      <div class="override">
+        <label class="f" for="ovD">دستگاه
+          <select id="ovD"><option value="auto">خودکار</option></select>
+        </label>
+        <label class="f" for="ovT">نت پایه
+          <select id="ovT"><option value="auto">خودکار</option></select>
+        </label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="optNames" checked> نام فارسی زیر هر نت</label>
+        <label><input type="checkbox" id="optTune" checked> جدول کوک در PDF</label>
+        <label><input type="checkbox" id="optHist" checked> نمودار توزیع نت‌ها در PDF</label>
+        <label><input type="checkbox" id="optContour"> نمودار حرکت ملودی در PDF</label>
+      </div>
+      <div class="btns">
+        <button type="button" class="primary" id="pdf" disabled>ساخت PDF</button>
+        <button type="button" id="play" disabled>شنیدن نت‌ها</button>
+        <button type="button" id="playOrig" disabled>شنیدن اصل</button>
+      </div>
+      <p class="note" id="pdfMsg"></p>
+    </aside>
+
+    <main class="results">
+      <div class="status" id="status"><span id="statusText">در حال آماده‌سازی نمونه…</span><span class="bar"><i id="prog"></i></span></div>
+
+      <section class="panel" id="summary">
+        <h2 id="srcName">تحلیل</h2>
+        <div class="facts" id="facts"></div>
+        <p class="flag" id="familyNote" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>کوک برای ساز شما</h2>
+        <p class="note" id="tuneIntro"></p>
+        <div class="tablewrap"><table id="tuneTable"></table></div>
+      </section>
+
+      <section class="panel">
+        <h2>نت‌ها</h2>
+        <div class="legend" id="legend"></div>
+        <div class="scorewrap"><canvas id="score"></canvas></div>
+        <p class="note" id="scoreNote"></p>
+      </section>
+
+      <section class="panel">
+        <h2>توزیع نت‌ها در طول قطعه</h2>
+        <p class="note">ستون‌های پررنگ، درجه‌های دستگاه تشخیص‌داده‌شده‌اند. هر ستون یک ربع‌پرده است.</p>
+        <canvas id="hist" height="200"></canvas>
+      </section>
+
+      <section class="panel">
+        <h2>حرکت ملودی</h2>
+        <p class="note">ارتفاع ملودی غالب در زمان. خطوط افقی درجه‌های دستگاه را نشان می‌دهند.</p>
+        <canvas id="contour" height="220"></canvas>
+      </section>
+
+      <p class="note">محدودیت این نسخه: سازها از هم جدا نمی‌شوند و ملودی غالبِ کل صدا نت‌نویسی می‌شود؛ تقسیم ریتمی ساده‌شده است و نت‌های عبور از میزان به هم وصل نمی‌شوند. نسخه‌ی کامل این بخش‌ها را روی سرور انجام می‌دهد.</p>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const fa = n => Number(n).toLocaleString('fa-IR');
+const signed = v => '\u2066' + (Math.round(v)>=0?'+':'−') + fa(Math.abs(Math.round(v))) + '\u2069';
+const C4 = 261.6256;
+
+/* ---------- music model: 24 quarter-tones per octave, 0 = C ---------- */
+const LETTERS = ['C','D','E','F','G','A','B'];
+const FA_LETTER = {C:'دو',D:'ر',E:'می',F:'فا',G:'سل',A:'لا',B:'سی'};
+const FA_ACC = {'':'',b:' بمل','#':' دیز',k:' کرن',s:' سری'};
+const SHORT_ACC = {'':'',b:'♭','#':'♯',k:'ک',s:'س'};
+// spelling of each quarter-tone class: [letter, accidental, octave bump]
+const SPELL = [['C',''],['C','s'],['C','#'],['D','k'],['D',''],['D','s'],['E','b'],['E','k'],['E',''],['F','k'],['F',''],['F','s'],
+               ['F','#'],['G','k'],['G',''],['G','s'],['A','b'],['A','k'],['A',''],['A','s'],['B','b'],['B','k'],['B',''],['C','k',1]];
+const spell = q => { const oct = Math.floor(q/24), k = ((q%24)+24)%24, s = SPELL[k]; return {letter:s[0], acc:s[1], oct: oct + (s[2]||0) - 0}; };
+const pcName = k => { const s = SPELL[((k%24)+24)%24]; return FA_LETTER[s[0]] + FA_ACC[s[1]]; };
+const INTERVAL = {2:'نیم پرده',3:'سه‌ربع پرده',4:'یک پرده',5:'پنج‌ربع پرده',6:'یک‌ونیم پرده'};
+
+const DASTGAH = [
+  {id:'shur', name:'شور', deg:[0,3,6,10,14,16,20], note:'آوازهای ابوعطا، دشتی، بیات ترک و افشاری هم از همین مجموعه‌ی نت‌ها ساخته شده‌اند؛ تفاوتشان در شاهد، ایست و گوشه‌هاست.'},
+  {id:'mahur', name:'ماهور', deg:[0,4,8,10,14,18,22], note:'راست‌پنجگاه هم همین نت‌ها را دارد و تفاوتش در شاهد و مسیر گوشه‌هاست.'},
+  {id:'homayun', name:'همایون', deg:[0,3,8,10,14,16,20], note:'بیات اصفهان از متعلقات همایون است و نت‌های مشترک زیادی با آن دارد.'},
+  {id:'esfahan', name:'بیات اصفهان', deg:[0,4,6,10,14,17,22], note:'بیات اصفهان از متعلقات همایون است و نت‌های مشترک زیادی با آن دارد.'},
+  {id:'segah', name:'سه‌گاه', deg:[0,3,7,11,14,17,21], note:''},
+  {id:'chahargah', name:'چهارگاه', deg:[0,3,8,10,14,17,22], note:''},
+  {id:'nava', name:'نوا', deg:[0,4,6,10,14,17,20], note:'نوا همان نت‌های شور را از درجه‌ی دیگری دارد؛ نت پایه تعیین‌کننده است.'},
+];
+const ALLOWED = [0.25,0.5,0.75,1,1.5,2,3,4];
+
+/* ---------- state ---------- */
+const S = { buffer:null, srcLabel:'', A:null, R:null, playing:null };
+
+/* ---------- UI helpers ---------- */
+function setStatus(t, p){ $('statusText').textContent = t; $('prog').style.width = (p==null?0:Math.round(p*100))+'%'; }
+const nextTick = () => new Promise(r => setTimeout(r, 0));
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+DASTGAH.forEach(d => { const o = document.createElement('option'); o.value = d.id; o.textContent = d.name; $('ovD').appendChild(o); });
+for (let k=0;k<24;k++){ const o = document.createElement('option'); o.value = k; o.textContent = pcName(k); $('ovT').appendChild(o); }
+
+/* ---------- audio in ---------- */
+let actx = null;
+const getCtx = () => (actx ||= new (window.AudioContext||window.webkitAudioContext)());
+
+async function fromFile(file){
+  try{
+    setStatus('در حال خواندن فایل…', 0.02);
+    const buf = await file.arrayBuffer();
+    const audio = await getCtx().decodeAudioData(buf);
+    S.buffer = audio; S.srcLabel = file.name;
+    if (!$('title').value) $('title').value = file.name.replace(/\.[^.]+$/,'');
+    await analyze(audio);
+  }catch(e){
+    console.error(e);
+    setStatus('این فایل خوانده نشد. یک فایل MP3 یا WAV سالم امتحان کنید.', 0);
+  }
+}
+
+async function makeSample(){
+  const sr = 22050, bpm = 84, beat = 60/bpm, cents = 12;   // slightly sharp, like many real recordings
+  const G4 = 392 * Math.pow(2, cents/1200);
+  const seq = [[0,1],[3,.5],[6,.5],[10,1],[6,.5],[3,.5],[0,2],[null,1],
+               [6,1],[10,.5],[14,.5],[10,1],[6,.5],[3,.5],[6,1],[3,1],[0,2],[null,1],
+               [10,1],[14,1],[16,1],[14,.5],[10,.5],[6,1],[3,.5],[6,.5],[3,1],[0,3],[null,1]];
+  const total = seq.reduce((a,s)=>a+s[1],0)*beat + 0.6;
+  const oac = new OfflineAudioContext(1, Math.ceil(total*sr), sr);
+  const mel = oac.createOscillator(); mel.type = 'triangle';
+  const lp = oac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 2400;
+  const g = oac.createGain(); g.gain.setValueAtTime(0,0);
+  const vib = oac.createOscillator(); vib.frequency.value = 5.2; const vg = oac.createGain(); vg.gain.value = 1.6;
+  vib.connect(vg); vg.connect(mel.frequency);
+  mel.connect(lp); lp.connect(g); g.connect(oac.destination);
+  let t = 0.2;
+  for (const [q,b] of seq){
+    const d = b*beat;
+    if (q !== null){
+      mel.frequency.setValueAtTime(G4*Math.pow(2,q*50/1200), t);
+      g.gain.setTargetAtTime(0.5, t, 0.012);
+      g.gain.setTargetAtTime(0, t + d*0.9, 0.025);
+    }
+    t += d;
+  }
+  // a quiet drone and a frame-drum pulse, so the sample is not a bare single line
+  [[98,0.05],[147,0.035]].forEach(([f,a]) => { const o = oac.createOscillator(); o.frequency.value = f*Math.pow(2,cents/1200); const og = oac.createGain(); og.gain.value = a; o.connect(og); og.connect(oac.destination); o.start(0); });
+  const nb = oac.createBuffer(1, sr*0.08, sr), nd = nb.getChannelData(0);
+  for (let i=0;i<nd.length;i++) nd[i] = (Math.random()*2-1) * Math.exp(-i/(sr*0.015));
+  for (let tb=0.2; tb<total-0.3; tb+=beat){ const s = oac.createBufferSource(); s.buffer = nb; const bp = oac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 180; bp.Q.value = 1.2; const sg = oac.createGain(); sg.gain.value = 0.9; s.connect(bp); bp.connect(sg); sg.connect(oac.destination); s.start(tb); }
+  mel.start(0); vib.start(0);
+  return oac.startRendering();
+}
+
+/* ---------- analysis ---------- */
+async function analyze(audio){
+  $('pdf').disabled = true; $('play').disabled = true; $('playOrig').disabled = true;
+  setStatus('در حال آماده‌سازی صدا…', 0.05); await nextTick();
+  // mono + decimate to ~11 kHz
+  const maxSec = 120, srIn = audio.sampleRate, nIn = Math.min(audio.length, Math.floor(maxSec*srIn));
+  const mono = new Float32Array(nIn);
+  for (let c=0;c<audio.numberOfChannels;c++){ const d = audio.getChannelData(c); for (let i=0;i<nIn;i++) mono[i] += d[i]/audio.numberOfChannels; }
+  const fct = Math.max(1, Math.round(srIn/11025)), sr = srIn/fct, n = Math.floor(nIn/fct);
+  const x = new Float32Array(n);
+  for (let i=0;i<n;i++){ let s=0; for (let j=0;j<fct;j++) s += mono[i*fct+j]; x[i] = s/fct; }
+
+  // YIN pitch tracking
+  const W = 512, hop = 256, tauMin = Math.floor(sr/1100), tauMax = Math.floor(sr/70);
+  const nF = Math.max(0, Math.floor((n - W - tauMax)/hop));
+  const f0 = new Float32Array(nF), conf = new Float32Array(nF), rms = new Float32Array(nF);
+  const d = new Float32Array(tauMax+1);
+  for (let fI=0; fI<nF; fI++){
+    const s0 = fI*hop;
+    let e = 0; for (let j=0;j<W;j++) e += x[s0+j]*x[s0+j]; rms[fI] = Math.sqrt(e/W);
+    let run = 0; d[0] = 1;
+    for (let tau=1; tau<=tauMax; tau++){
+      let sum = 0; for (let j=0;j<W;j++){ const df = x[s0+j]-x[s0+j+tau]; sum += df*df; }
+      run += sum; d[tau] = run>0 ? sum*tau/run : 1;
+    }
+    let best = -1;
+    for (let tau=tauMin; tau<tauMax; tau++){ if (d[tau] < 0.15){ while (tau+1<tauMax && d[tau+1]<d[tau]) tau++; best = tau; break; } }
+    if (best < 0){ let m = 1e9; for (let tau=tauMin;tau<tauMax;tau++) if (d[tau]<m){ m=d[tau]; best=tau; } if (m > 0.3) best = -1; }
+    if (best > 0){
+      const a = d[best-1], b = d[best], c = d[best+1]; const den = a - 2*b + c;
+      const tt = den ? best + 0.5*(a-c)/den : best;
+      f0[fI] = sr/tt; conf[fI] = Math.max(0, 1 - b);
+    }
+    if (fI % 150 === 0){ setStatus('ردیابی ارتفاع صدا…', 0.08 + 0.72*fI/nF); await nextTick(); }
+  }
+  setStatus('تشخیص دستگاه و نت پایه…', 0.85); await nextTick();
+  const dt = hop/sr;
+  const sorted = Array.from(rms).sort((a,b)=>a-b), gate = 0.12*(sorted[Math.floor(sorted.length*0.95)]||0);
+  const cents = new Float32Array(nF).fill(NaN);
+  for (let i=0;i<nF;i++) if (f0[i] && rms[i] > gate && conf[i] > 0.6) cents[i] = 1200*Math.log2(f0[i]/C4);
+
+  // global tuning offset on a 50-cent grid (circular mean)
+  let cs=0, sn=0;
+  for (let i=0;i<nF;i++) if (!isNaN(cents[i])){ const ang = 2*Math.PI*cents[i]/50; cs += conf[i]*Math.cos(ang); sn += conf[i]*Math.sin(ang); }
+  const offset = Math.atan2(sn, cs)/(2*Math.PI)*50;
+
+  // quarter-tone index per frame (96 = C4), median-smoothed
+  const qRaw = Array.from(cents, c => isNaN(c) ? null : Math.round((c - offset)/50) + 96);
+  const q = qRaw.map((v,i) => { if (v===null) return null; const w=[]; for (let k=-2;k<=2;k++){ const u=qRaw[i+k]; if (u!=null) w.push(u); } if (w.length<3) return v; w.sort((a,b)=>a-b); return w[w.length>>1]; });
+
+  // histogram over pitch classes
+  const hist = new Float64Array(24); let ht = 0;
+  q.forEach((v,i) => { if (v!=null){ hist[((v%24)+24)%24] += conf[i]; ht += conf[i]; } });
+  if (ht < 1){ setStatus('ملودی واضحی پیدا نشد. فایلی با آواز یا ساز تکنواز مشخص‌تر امتحان کنید.', 0); return; }
+  for (let k=0;k<24;k++) hist[k] /= ht;
+
+  // note segmentation
+  const notes = []; let cur = null, gap = 0;
+  const close = () => { if (cur && cur.len >= 3) notes.push({q:cur.q, t0:cur.s*dt, t1:(cur.s+cur.len)*dt}); cur = null; };
+  for (let i=0;i<nF;i++){
+    const v = q[i];
+    if (v==null){ if (cur){ gap++; if (gap>2) close(); } continue; }
+    if (cur && (v===cur.q || (q[i+1]===cur.q && Math.abs(v-cur.q)<=4))){ cur.len = i - cur.s + 1; gap = 0; }
+    else { close(); cur = {q:v, s:i, len:1}; gap = 0; }
+  }
+  close();
+
+  // phrase finals: notes followed by a pause, weighted by length
+  const fin = new Float64Array(24); let ft = 0;
+  notes.forEach((nt,i) => { const nx = notes[i+1]; if (!nx || nx.t0 - nt.t1 > 0.28){ const w = nt.t1-nt.t0 + (nx?0:0.5); fin[((nt.q%24)+24)%24] += w; ft += w; } });
+  if (ft) for (let k=0;k<24;k++) fin[k] /= ft;
+
+  // dastgah scoring over every possible tonic
+  const scores = DASTGAH.map(D => {
+    const mask = new Array(24).fill(false); D.deg.forEach(k => mask[k] = true);
+    let best = {s:-1e9, t:0};
+    for (let t=0;t<24;t++){
+      let s = 0; for (let k=0;k<24;k++) s += hist[k] * (mask[((k-t)%24+24)%24] ? 1 : -1.3);
+      s += 0.55*hist[t] + 0.75*fin[t];
+      if (s > best.s) best = {s, t};
+    }
+    return {D, s:best.s, t:best.t};
+  }).sort((a,b) => b.s - a.s);
+  const ex = scores.map(r => Math.exp(r.s/0.035)), exT = ex.reduce((a,b)=>a+b,0);
+  scores.forEach((r,i) => r.p = ex[i]/exT);
+
+  // tempo from note onsets
+  const res = 0.01, len = Math.ceil((notes.length ? notes[notes.length-1].t1 : 1)/res)+10, imp = new Float32Array(len);
+  notes.forEach(nt => { const c = Math.round(nt.t0/res); for (let k=-3;k<=3;k++) if (c+k>=0 && c+k<len) imp[c+k] += Math.exp(-k*k/4); });
+  let ac0 = 0; for (let i=0;i<len;i++) ac0 += imp[i]*imp[i];
+  const acAt = L => { let s=0; for (let i=0;i+L<len;i++) s += imp[i]*imp[i+L]; return s; };
+  let bestB = {v:-1, lag:0};
+  for (let L=Math.round(0.33/res); L<=Math.round(1.2/res); L++){ const bpm = 60/(L*res); const w = Math.exp(-0.5*Math.pow(Math.log2(bpm/100)/0.7,2)); const v = acAt(L)*w; if (v > bestB.v) bestB = {v, lag:L}; }
+  const tconf = ac0 ? acAt(bestB.lag)/ac0 : 0;
+  const free = notes.length < 8 || tconf < 0.18;
+  const bpm = free ? 60 : Math.round(60/(bestB.lag*res));
+  const lag = bestB.lag, a2 = acAt(2*lag), a3 = acAt(3*lag), a4 = acAt(4*lag);
+  const barBeats = free ? 0 : (a3 > a4*1.1 && a3 > a2*0.9 ? 3 : (a4 >= a2*0.8 ? 4 : 2));
+
+  S.A = {nF, dt, cents, offset, hist, fin, notes, scores, bpm, free, barBeats, tconf, duration: nF*dt, truncated: audio.length > maxSec*srIn};
+  resolve();
+  setStatus('تحلیل کامل شد.', 1);
+  $('pdf').disabled = false; $('play').disabled = !S.R.items.length; $('playOrig').disabled = !S.buffer;
+}
+
+/* ---------- apply user overrides, build notation ---------- */
+function resolve(){
+  const A = S.A; if (!A) return;
+  const ovD = $('ovD').value, ovT = $('ovT').value;
+  let pick = A.scores[0];
+  if (ovD !== 'auto') pick = A.scores.find(r => r.D.id === ovD);
+  const D = pick.D, tonic = ovT !== 'auto' ? Number(ovT) : pick.t;
+  const second = A.scores.find(r => r !== pick);
+
+  // key signature from the dastgah's degrees
+  const sig = {};
+  D.deg.forEach(k => { const s = SPELL[(tonic+k)%24]; if (s[1]) sig[s[0]] = s[1]; });
+
+  // rhythm quantisation
+  const beat = 60/A.bpm, ns = A.notes;
+  const items = [];
+  if (ns.length){
+    const t00 = ns[0].t0;
+    const qb = ns.map(nt => Math.round((nt.t0 - t00)/beat*4)/4);
+    const snap = v => ALLOWED.reduce((a,b) => Math.abs(b-v) < Math.abs(a-v) ? b : a);
+    const restSplit = v => { const out=[]; for (const r of [4,2,1,0.5,0.25]) while (v >= r - 1e-6){ out.push(r); v -= r; } return out; };
+    // octave placement for treble clef
+    const med = ns.map(nt=>nt.q).sort((a,b)=>a-b)[ns.length>>1];
+    const shift = Math.round((118 - med)/24)*24;
+    A.shift = shift;
+    for (let i=0;i<ns.length;i++){
+      const ioi = i+1<ns.length ? qb[i+1]-qb[i] : snap((ns[i].t1-ns[i].t0)/beat);
+      if (ioi <= 0) continue;
+      const sounded = Math.max(0.25, Math.round((ns[i].t1-ns[i].t0)/beat*4)/4);
+      let nd = ioi, rest = 0;
+      if (ioi - sounded >= 0.5){ nd = sounded; rest = ioi - sounded; }
+      nd = Math.min(4, snap(nd));
+      items.push({type:'note', q: ns[i].q + shift, rq: ns[i].q, dur: nd, t0: ns[i].t0});
+      if (rest >= 0.5) restSplit(Math.min(rest, 8)).forEach(r => items.push({type:'rest', dur:r}));
+    }
+  }
+  // bar lines
+  const withBars = [];
+  let acc = 0;
+  items.forEach(it => { withBars.push(it); if (A.barBeats){ acc += it.dur; while (acc >= A.barBeats - 1e-6){ withBars.push({type:'bar'}); acc -= A.barBeats; } } });
+  if (!withBars.length || withBars[withBars.length-1].type !== 'bar') withBars.push({type:'bar'});
+  withBars[withBars.length-1].final = true;
+
+  S.R = {D, tonic, pick, second, sig, items: withBars, auto: ovD==='auto' && ovT==='auto'};
+  render();
+}
+
+/* ---------- tuning table ---------- */
+function tuningRows(){
+  const {D, tonic} = S.R, off = S.A.offset;
+  const rows = D.deg.concat([24]).map((k,i,arr) => {
+    const qAbs = 96 + tonic + k;                       // octave 4 upward from tonic
+    const c = (qAbs-96)*50 + off;
+    const hz = C4 * Math.pow(2, c/1200);
+    const pianoDev = c - Math.round(c/100)*100;
+    return {deg: i+1, name: pcName(tonic+k), hz, step: i ? INTERVAL[k - arr[i-1]] || '' : '—', dev: pianoDev, quarter: (tonic+k)%2 === 1};
+  });
+  return rows;
+}
+function tuningIntro(){
+  const {D, tonic} = S.R, A = S.A, t = pcName(tonic);
+  const qs = D.deg.filter(k => (tonic+k)%2===1).map(k => pcName(tonic+k));
+  const offTxt = Math.abs(A.offset) >= 3 ? ` کوک کلی ضبط ${fa(Math.abs(Math.round(A.offset)))} سنت ${A.offset>0?'بالاتر':'پایین‌تر'} از لا ۴۴۰ است؛ اعداد جدول همین را لحاظ کرده‌اند.` : ' ضبط تقریباً روی لا ۴۴۰ کوک شده است.';
+  const qTxt = qs.length ? ` نت‌های ربع‌پرده‌ای: ${qs.join('، ')}.` : '';
+  switch ($('instr').value){
+    case 'santur': return `خرک‌ها را برای ${D.name} ${t} طبق جدول کوک کنید و با تیونر سنتی، هر نت را روی ستون «اختلاف با پیانو» تنظیم کنید.${qTxt}${offTxt}`;
+    case 'tar': return `سیم‌های باز را بر پایه‌ی ${t} و نت‌های اصلی دستگاه (درجه‌ی چهارم یا پنجم) کوک کنید و دستان‌های کرن و سری را با جدول تطبیق دهید.${qTxt}${offTxt}`;
+    case 'kamancheh': return `سیم‌ها را به فاصله‌ی چهارم یا پنجم بر پایه‌ی ${t} کوک کنید و انگشت‌گذاری ربع‌پرده‌ها را با جدول بسنجید.${qTxt}${offTxt}`;
+    case 'ney': return `نی‌ای انتخاب کنید که ${D.name} از ${t} روی آن راحت اجرا شود؛ ربع‌پرده‌ها با تنظیم لب و سوراخ‌ها گرفته می‌شوند.${qTxt}${offTxt}`;
+    default: return qs.length ? `این دستگاه ربع‌پرده دارد (${qs.join('، ')}) که روی پیانو و سازهای ثابت غربی قابل اجرا نیست؛ نزدیک‌ترین نیم‌پرده فقط تقریب است.${offTxt}` : `نت‌های این اجرا روی سازهای غربی قابل اجرا هستند.${offTxt}`;
+  }
+}
+
+/* ---------- render page ---------- */
+function render(){
+  const A = S.A, R = S.R;
+  $('srcName').textContent = S.srcLabel ? `تحلیل: ${S.srcLabel}` : 'تحلیل';
+  const pct = p => fa(Math.round(p*100)) + '٪';
+  const notesQ = A.notes.map(n=>n.q); const lo = Math.min(...notesQ), hi = Math.max(...notesQ);
+  const facts = [
+    {k:'دستگاه', v:`${R.D.name}`, s: R.auto ? `اطمینان ${pct(R.pick.p)}` : 'انتخاب‌شده توسط شما', m: R.auto ? R.pick.p : null, key:true},
+    {k:'نت پایه', v: pcName(R.tonic), s: R.auto ? 'از ایست جمله‌ها و پرتکرارترین نت' : 'انتخاب‌شده توسط شما', key:true},
+    {k:'گزینه‌ی بعدی', v: R.second ? `${R.second.D.name} ${pcName(R.second.t)}` : '—', s: R.second ? `احتمال ${pct(R.second.p)}` : ''},
+    {k:'کوک مرجع', v: `لا = ${fa((440*Math.pow(2,A.offset/1200)).toFixed(1))}`, s: `${signed(A.offset)} سنت نسبت به ۴۴۰ هرتز`},
+    {k:'تمپو و وزن', v: A.free ? 'آزاد' : `${fa(A.bpm)} ضرب`, s: A.free ? 'ضرب منظمی پیدا نشد؛ بدون خط میزان' : `وزن پیشنهادی ${fa(A.barBeats)}/۴`},
+    {k:'گستره‌ی ملودی', v: `${pcName(lo)} تا ${pcName(hi)}`, s: `${fa(Math.round((hi-lo)/2))} نیم‌پرده · ${fa(A.notes.length)} نت`},
+  ];
+  $('facts').innerHTML = facts.map(f => `<div class="fact${f.key?' key':''}"><span class="k">${f.k}</span><span class="v">${f.v}</span><span class="s">${f.s}</span>${f.m!=null?`<span class="meter"><i style="width:${Math.round(f.m*100)}%"></i></span>`:''}</div>`).join('');
+  const fn = R.D.note; $('familyNote').hidden = !fn; $('familyNote').textContent = fn || '';
+
+  $('tuneIntro').textContent = tuningIntro();
+  const rows = tuningRows();
+  $('tuneTable').innerHTML = '<thead><tr><th>درجه</th><th>نت</th><th>فرکانس (هرتز)</th><th>فاصله از درجه‌ی قبل</th><th>اختلاف با پیانو (سنت)</th></tr></thead><tbody>' +
+    rows.map(r => `<tr><td>${fa(r.deg)}</td><td${r.quarter?' class="qt"':''}>${r.name}</td><td>${fa(r.hz.toFixed(1))}</td><td>${r.step}</td><td>${signed(r.dev)}</td></tr>`).join('') + '</tbody>';
+
+  $('legend').innerHTML = `<span>سرکلید: ${Object.keys(R.sig).length ? Object.entries(R.sig).map(([l,a]) => FA_LETTER[l]+FA_ACC[a]).join('، ') : 'بدون علامت'}</span><span>علامت کرن: بمل با پرچم مثلثی</span><span>علامت سری: یک خط عمودی با دو خط مورب</span>`;
+  $('scoreNote').textContent = (A.shift ? `نت‌ها ${fa(Math.abs(A.shift/24))} اکتاو ${A.shift>0?'بالاتر':'پایین‌تر'} از صدای واقعی نوشته شده‌اند تا در کلید سل خوانا باشند. ` : '') + (A.truncated ? 'فقط دو دقیقه‌ی اول فایل تحلیل شده است.' : '');
+  drawPreview(); drawHist($('hist'), themeColors()); drawContour($('contour'), themeColors());
+}
+
+function themeColors(){ return {ink:css('--ink'), muted:css('--muted'), line:css('--line'), accent:css('--lapis'), accent2:css('--saffron'), bg:css('--surface')}; }
+const PAPER = {ink:'#151B28', muted:'#5A6378', line:'#D3D8E2', accent:'#2847A8', accent2:'#A86A06', bg:'#FFFFFF'};
+
+/* ---------- charts ---------- */
+function fitCanvas(cv, h){ const dpr = window.devicePixelRatio||1, w = cv.clientWidth || 600; cv.width = w*dpr; cv.height = h*dpr; const ctx = cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return {ctx, w, h}; }
+
+function drawHist(cv, C, fixed){
+  const {ctx, w, h} = fixed || fitCanvas(cv, 200);
+  const {hist} = S.A, {D, tonic} = S.R;
+  const degs = new Set(D.deg.map(k => (tonic+k)%24));
+  const padB = 46, padT = 14, padX = 10, max = Math.max(...hist) || 1;
+  ctx.fillStyle = C.bg; ctx.fillRect(0,0,w,h);
+  const bw = (w - 2*padX)/24;
+  ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(padX, h-padB+.5); ctx.lineTo(w-padX, h-padB+.5); ctx.stroke();
+  for (let i=0;i<24;i++){
+    const k = i;                                    // left-to-right from C, like a keyboard
+    const x = padX + i*bw, bh = (h-padB-padT)*hist[k]/max;
+    const on = degs.has(k);
+    ctx.fillStyle = on ? (k===tonic ? C.accent2 : C.accent) : C.line;
+    ctx.fillRect(x+bw*0.15, h-padB-bh, bw*0.7, bh);
+    if (k%2===0 || on){
+      ctx.save(); ctx.fillStyle = on ? C.ink : C.muted; ctx.font = `${on?600:400} ${Math.min(11, bw*0.9)}px Vazirmatn, Tahoma, sans-serif`;
+      ctx.textAlign='center'; ctx.direction='rtl';
+      const s = SPELL[k]; ctx.fillText(FA_LETTER[s[0]], x+bw/2, h-padB+16);
+      if (s[1]) ctx.fillText(SHORT_ACC[s[1]], x+bw/2, h-padB+30);
+      ctx.restore();
+    }
+  }
+}
+
+function drawContour(cv, C, fixed){
+  const {ctx, w, h} = fixed || fitCanvas(cv, 220);
+  const {cents, offset, dt, nF} = S.A, {D, tonic} = S.R;
+  const vals = []; for (let i=0;i<nF;i++) if (!isNaN(cents[i])) vals.push((cents[i]-offset)/50+96);
+  ctx.fillStyle = C.bg; ctx.fillRect(0,0,w,h);
+  if (!vals.length) return;
+  vals.sort((a,b)=>a-b);
+  const lo = Math.floor(vals[Math.floor(vals.length*0.02)]) - 2, hi = Math.ceil(vals[Math.floor(vals.length*0.98)]) + 2;
+  const padL = 64, padR = 10, padT = 10, padB = 24;
+  const Y = v => padT + (hi - v)/(hi-lo)*(h-padT-padB), X = t => padR + (1 - t/(nF*dt))*(w-padL-padR);   // time runs right-to-left (RTL)
+  ctx.font = '11px Vazirmatn, Tahoma, sans-serif'; ctx.direction='rtl'; ctx.textAlign='left';
+  for (let v=Math.ceil(lo); v<=hi; v++){
+    const k = ((v%24)+24)%24; if (!D.deg.some(d => (tonic+d)%24===k)) continue;
+    ctx.strokeStyle = k===tonic ? C.accent2 : C.line; ctx.lineWidth = k===tonic ? 1.2 : 1;
+    ctx.beginPath(); ctx.moveTo(padR, Y(v)+.5); ctx.lineTo(w-padL, Y(v)+.5); ctx.stroke();
+    ctx.fillStyle = k===tonic ? C.ink : C.muted; ctx.fillText(pcName(k), w-padL+6, Y(v)+4);
+  }
+  ctx.fillStyle = C.accent;
+  for (let i=0;i<nF;i++){ if (isNaN(cents[i])) continue; const v = (cents[i]-offset)/50+96; if (v<lo||v>hi) continue; ctx.fillRect(X(i*dt)-0.8, Y(v)-0.8, 1.6, 1.6); }
+  ctx.fillStyle = C.muted; ctx.textAlign='right';
+  ctx.fillText('شروع', w-padL-4, h-6); ctx.textAlign='left'; ctx.fillText(`${fa(Math.round(nF*dt))} ثانیه`, padR, h-6);
+}
+
+/* ---------- staff notation (shared by preview and PDF) ---------- */
+const SIG_STEP = { flat:{B:34,E:37,A:33,D:36,G:32,C:35,F:31}, sharp:{F:38,C:35,G:39,D:36,A:33,E:37,B:34} };
+const FLAT_ORDER = ['B','E','A','D','G','C','F'], SHARP_ORDER = ['F','C','G','D','A','E','B'];
+const stepOf = sp => LETTERS.indexOf(sp.letter) + 7*sp.oct;      // E4 = 30, bottom line
+
+function shownAcc(sp, sig){ const k = sig[sp.letter] || ''; if (sp.acc === k) return null; return sp.acc || 'n'; }
+
+function layout(items, width, sp, sig, timeSig){
+  const nSig = Object.keys(sig).length;
+  const head = first => sp*(3.6 + 1.25*nSig + (first && timeSig ? 2.4 : 0) + 1);
+  const wOf = it => it.type==='bar' ? sp*1.4 : it.type==='rest' ? sp*(2.0 + 1.3*Math.sqrt(it.dur)) :
+     sp*(2.2 + 1.6*Math.sqrt(it.dur)) + (shownAcc(spell(it.q), sig) ? sp*1.3 : 0);
+  const systems = []; let cur = {items:[], first:true, used:head(true)};
+  for (const it of items){
+    const ww = wOf(it);
+    if (cur.used + ww > width && cur.items.length){ systems.push(cur); cur = {items:[], first:false, used:head(false)}; if (it.type==='bar') continue; }
+    cur.items.push({...it, w:ww}); cur.used += ww;
+  }
+  if (cur.items.length) systems.push(cur);
+  systems.forEach((s,i) => { s.head = head(s.first); s.stretch = i < systems.length-1 ? (width - s.used)/Math.max(1, s.items.filter(t=>t.type!=='bar').length) : 0; if (s.stretch < 0) s.stretch = 0; });
+  return systems;
+}
+
+function drawAcc(ctx, type, x, y, sp, C){
+  ctx.save(); ctx.strokeStyle = C.ink; ctx.fillStyle = C.ink; ctx.lineWidth = Math.max(1, sp*0.12); ctx.lineCap='round';
+  const L = (x1,y1,x2,y2) => { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); };
+  if (type==='b' || type==='k'){
+    L(x, y-sp*2, x, y+sp*0.55);
+    if (type==='b'){ ctx.beginPath(); ctx.moveTo(x, y-sp*0.25); ctx.bezierCurveTo(x+sp*0.9, y-sp*0.75, x+sp*1.05, y+sp*0.05, x, y+sp*0.55); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.moveTo(x, y-sp*0.45); ctx.lineTo(x+sp*0.95, y+sp*0.05); ctx.lineTo(x, y+sp*0.55); ctx.stroke(); }
+  } else if (type==='#'){
+    L(x+sp*0.25, y-sp*1.3, x+sp*0.25, y+sp*1.1); L(x+sp*0.75, y-sp*1.1, x+sp*0.75, y+sp*1.3);
+    ctx.lineWidth = sp*0.28; L(x-sp*0.05, y-sp*0.25, x+sp*1.05, y-sp*0.55); L(x-sp*0.05, y+sp*0.55, x+sp*1.05, y+sp*0.25);
+  } else if (type==='s'){
+    L(x+sp*0.5, y-sp*1.3, x+sp*0.5, y+sp*1.3);
+    ctx.lineWidth = sp*0.24; L(x, y-sp*0.2, x+sp*1.0, y-sp*0.6); L(x, y+sp*0.6, x+sp*1.0, y+sp*0.2);
+  } else if (type==='n'){
+    L(x+sp*0.15, y-sp*1.3, x+sp*0.15, y+sp*0.45); L(x+sp*0.8, y-sp*0.45, x+sp*0.8, y+sp*1.3);
+    ctx.lineWidth = sp*0.26; L(x+sp*0.15, y-sp*0.15, x+sp*0.8, y-sp*0.4); L(x+sp*0.15, y+sp*0.45, x+sp*0.8, y+sp*0.2);
+  }
+  ctx.restore();
+}
+
+function drawClef(ctx, x, yTop, sp, C){
+  ctx.save(); ctx.fillStyle = C.ink; ctx.font = `${sp*4.3}px "Noto Music", serif`; ctx.textBaseline = 'alphabetic'; ctx.direction='ltr'; ctx.textAlign='left';
+  ctx.fillText('\u{1D11E}', x, yTop + sp*3.15);
+  ctx.restore();
+}
+
+function drawRest(ctx, dur, x, yTop, sp, C){
+  ctx.save(); ctx.fillStyle = C.ink; ctx.strokeStyle = C.ink;
+  if (dur >= 4){ ctx.fillRect(x, yTop+sp, sp*1.1, sp*0.5); }
+  else if (dur >= 2){ ctx.fillRect(x, yTop+sp*1.5, sp*1.1, sp*0.5); }
+  else {
+    const ch = dur >= 1 ? '\u{1D13D}' : dur >= 0.5 ? '\u{1D13E}' : '\u{1D13F}';
+    ctx.font = `${sp*3.2}px "Noto Music", serif`; ctx.direction='ltr'; ctx.textAlign='left'; ctx.fillText(ch, x, yTop + sp*2.6);
+  }
+  ctx.restore();
+}
+
+function drawSystem(ctx, sys, x0, yTop, width, sp, C, opts){
+  const {sig, timeSig, names} = opts;
+  const yBot = yTop + 4*sp, Ystep = s => yBot - (s-30)*sp/2;
+  ctx.save(); ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(0.8, sp*0.09);
+  for (let i=0;i<5;i++){ ctx.beginPath(); ctx.moveTo(x0, yTop+i*sp); ctx.lineTo(x0+width, yTop+i*sp); ctx.stroke(); }
+  ctx.restore();
+  let x = x0 + sp*0.4;
+  drawClef(ctx, x, yTop, sp, C); x += sp*3.4;
+  const flats = Object.entries(sig).some(([,a]) => a==='b'||a==='k');
+  (flats ? FLAT_ORDER : SHARP_ORDER).forEach(l => { const a = sig[l]; if (!a) return; drawAcc(ctx, a, x, Ystep(SIG_STEP[(a==='b'||a==='k')?'flat':'sharp'][l]), sp, C); x += sp*1.25; });
+  if (sys.first && timeSig){
+    ctx.save(); ctx.fillStyle = C.ink; ctx.font = `700 ${sp*2.1}px Georgia, serif`; ctx.textAlign='center'; ctx.direction='ltr';
+    ctx.fillText(String(timeSig), x+sp, yTop+sp*1.75); ctx.fillText('4', x+sp, yTop+sp*3.75); ctx.restore(); x += sp*2.4;
+  }
+  x += sp;
+  for (const it of sys.items){
+    const w = it.w + (it.type==='bar' ? 0 : sys.stretch);
+    if (it.type==='bar'){
+      ctx.save(); ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(1, sp*0.12);
+      const bx = Math.min(x + sp*0.4, x0 + width - (it.final ? sp*0.4 : 0));
+      ctx.beginPath(); ctx.moveTo(bx, yTop); ctx.lineTo(bx, yBot); ctx.stroke();
+      if (it.final){ ctx.lineWidth = sp*0.45; ctx.beginPath(); ctx.moveTo(x0+width-sp*0.2, yTop); ctx.lineTo(x0+width-sp*0.2, yBot); ctx.stroke(); }
+      ctx.restore(); x += w; continue;
+    }
+    if (it.type==='rest'){ drawRest(ctx, it.dur, x + sp*0.4, yTop, sp, C); x += w; continue; }
+    const s = spell(it.q), st = stepOf(s), y = Ystep(st);
+    let hx = x + sp*0.9;
+    const acc = shownAcc(s, sig);
+    if (acc){ drawAcc(ctx, acc, x + sp*0.1, y, sp, C); hx += sp*1.3; }
+    ctx.save(); ctx.strokeStyle = C.ink; ctx.fillStyle = C.ink; ctx.lineWidth = Math.max(0.9, sp*0.1);
+    // ledger lines
+    for (let l=28; l>=st; l-=2){ ctx.beginPath(); ctx.moveTo(hx-sp*0.95, Ystep(l)); ctx.lineTo(hx+sp*0.95, Ystep(l)); ctx.stroke(); }
+    for (let l=40; l<=st; l+=2){ ctx.beginPath(); ctx.moveTo(hx-sp*0.95, Ystep(l)); ctx.lineTo(hx+sp*0.95, Ystep(l)); ctx.stroke(); }
+    // head
+    const hollow = it.dur >= 2;
+    ctx.beginPath(); ctx.ellipse(hx, y, sp*0.62, sp*0.44, -0.35, 0, Math.PI*2);
+    if (hollow){ ctx.lineWidth = sp*0.16; ctx.stroke(); } else ctx.fill();
+    // stem + flags
+    if (it.dur < 4){
+      const up = st < 34, sx = up ? hx + sp*0.58 : hx - sp*0.58, ey = up ? y - sp*3.4 : y + sp*3.4;
+      ctx.lineWidth = Math.max(1, sp*0.11); ctx.beginPath(); ctx.moveTo(sx, y + (up?-sp*0.1:sp*0.1)); ctx.lineTo(sx, ey); ctx.stroke();
+      const flags = it.dur <= 0.25 ? 2 : (it.dur === 0.5 || it.dur === 0.75) ? 1 : 0;
+      ctx.lineWidth = sp*0.2;
+      for (let f=0; f<flags; f++){ const fy = ey + (up ? f*sp*0.9 : -f*sp*0.9); ctx.beginPath(); ctx.moveTo(sx, fy); ctx.bezierCurveTo(sx+sp*0.2, fy+(up?sp*0.9:-sp*0.9), sx+sp*1.3, fy+(up?sp*1.2:-sp*1.2), sx+sp*0.9, fy+(up?sp*2.2:-sp*2.2)); ctx.stroke(); }
+    }
+    if ([0.75,1.5,3].includes(it.dur)){ const dy = st%2===0 ? y - sp*0.5 : y; ctx.beginPath(); ctx.arc(hx + sp*1.1, dy, sp*0.17, 0, Math.PI*2); ctx.fill(); }
+    ctx.restore();
+    if (names){
+      ctx.save(); ctx.fillStyle = s.acc==='k'||s.acc==='s' ? C.accent2 : C.muted; ctx.font = `500 ${sp*1.05}px Vazirmatn, Tahoma, sans-serif`; ctx.textAlign='center'; ctx.direction='rtl';
+      ctx.fillText(FA_LETTER[s.letter] + (s.acc ? SHORT_ACC[s.acc] : ''), hx, yBot + sp*3.6);
+      ctx.restore();
+    }
+    x += w;
+  }
+}
+
+function drawPreview(){
+  const cv = $('score'), C = themeColors();
+  const w = cv.clientWidth || 640, sp = w < 520 ? 7 : 8.5, margin = 12;
+  const R = S.R, timeSig = S.A.free ? 0 : S.A.barBeats, names = $('optNames').checked;
+  const systems = layout(R.items, w - 2*margin, sp, R.sig, timeSig);
+  const sysH = sp*(names ? 13 : 11.5), shown = systems.slice(0, 8);
+  const h = Math.max(1, shown.length)*sysH + sp*3;
+  const {ctx} = fitCanvas(cv, h);
+  ctx.fillStyle = C.bg; ctx.fillRect(0,0,w,h);
+  shown.forEach((s,i) => drawSystem(ctx, s, margin, sp*4 + i*sysH, i===systems.length-1 ? Math.min(w-2*margin, s.used + sp) : w - 2*margin, sp, C, {sig:R.sig, timeSig, names}));
+  if (systems.length > shown.length) $('scoreNote').textContent += ` پیش‌نمایش ${fa(shown.length)} سطر از ${fa(systems.length)} سطر است؛ PDF همه را دارد.`;
+}
+
+/* ---------- PDF ---------- */
+async function buildPdf(){
+  $('pdfMsg').textContent = 'در حال ساخت PDF…';
+  try { await Promise.all(['700 30px "Noto Naskh Arabic"','500 16px Vazirmatn','700 16px Vazirmatn','30px "Noto Music"'].map(f => document.fonts.load(f, 'نت 𝄞'))); } catch(e){}
+  const A = S.A, R = S.R, C = PAPER;
+  const PW = 1240, PH = 1754, M = 96, inner = PW - 2*M;
+  const names = $('optNames').checked, timeSig = A.free ? 0 : A.barBeats, sp = 11;
+  const pages = [];
+  const newPage = () => { const cv = document.createElement('canvas'); cv.width = PW; cv.height = PH; const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,PW,PH); pages.push(cv); return ctx; };
+  const T = (ctx, txt, x, y, font, color, align='right') => { ctx.save(); ctx.font = font; ctx.fillStyle = color; ctx.direction = 'rtl'; ctx.textAlign = align; ctx.fillText(txt, x, y); ctx.restore(); };
+  const R0 = PW - M;
+
+  let ctx = newPage(), y = M + 30;
+  const title = $('title').value.trim() || 'بدون عنوان', artist = $('artist').value.trim();
+  T(ctx, title, R0, y + 26, '700 50px "Noto Naskh Arabic", serif', C.ink); y += 64;
+  const instrName = $('instr').selectedOptions[0].textContent;
+  T(ctx, [artist, `${R.D.name} ${pcName(R.tonic)}`, `برای ${instrName}`].filter(Boolean).join('  ·  '), R0, y + 10, '500 21px Vazirmatn, sans-serif', C.muted); y += 34;
+  ctx.fillStyle = C.accent; ctx.fillRect(M, y, inner, 3); y += 44;
+
+  // summary grid
+  const cells = [
+    ['دستگاه', R.D.name, R.auto ? `اطمینان ${fa(Math.round(R.pick.p*100))}٪` : 'تعیین‌شده توسط کاربر'],
+    ['نت پایه', pcName(R.tonic), R.auto ? 'تشخیص خودکار' : 'تعیین‌شده توسط کاربر'],
+    ['گزینه‌ی بعدی', R.second ? `${R.second.D.name} ${pcName(R.second.t)}` : '—', R.second ? `${fa(Math.round(R.second.p*100))}٪` : ''],
+    ['کوک مرجع', `لا = ${fa((440*Math.pow(2,A.offset/1200)).toFixed(1))} هرتز`, `${signed(A.offset)} سنت نسبت به ۴۴۰`],
+    ['تمپو', A.free ? 'آزاد' : `${fa(A.bpm)} ضرب در دقیقه`, A.free ? 'بدون میزان‌بندی' : `وزن ${fa(A.barBeats)}/۴`],
+    ['تعداد نت', fa(A.notes.length), `${fa(Math.round(A.duration))} ثانیه تحلیل‌شده`],
+  ];
+  const cw = inner/3, ch = 108;
+  cells.forEach((c,i) => {
+    const col = i%3, row = Math.floor(i/3), cx = R0 - col*cw, cy = y + row*ch;
+    ctx.fillStyle = i<2 ? C.accent : C.line; ctx.fillRect(cx-4, cy, 4, ch-24);
+    T(ctx, c[0], cx-18, cy+22, '500 18px Vazirmatn, sans-serif', C.muted);
+    T(ctx, c[1], cx-18, cy+58, '700 30px "Noto Naskh Arabic", serif', C.ink);
+    T(ctx, c[2], cx-18, cy+80, '400 17px Vazirmatn, sans-serif', C.muted);
+  });
+  y += ch*2 + 10;
+  if (R.D.note){ T(ctx, R.D.note, R0, y, '400 18px Vazirmatn, sans-serif', C.muted); y += 40; }
+
+  if ($('optTune').checked){
+    T(ctx, `کوک ${instrName}`, R0, y + 10, '700 28px "Noto Naskh Arabic", serif', C.ink); y += 40;
+    // wrap intro text
+    const words = tuningIntro().split(' '); let line = ''; ctx.font = '400 18px Vazirmatn, sans-serif';
+    for (const wd of words){ const t = line ? line + ' ' + wd : wd; if (ctx.measureText(t).width > inner){ T(ctx, line, R0, y+6, ctx.font, C.ink); y += 30; line = wd; } else line = t; }
+    if (line){ T(ctx, line, R0, y+6, '400 18px Vazirmatn, sans-serif', C.ink); y += 40; }
+    const colsX = [R0, R0-120, R0-330, R0-560, R0-820];
+    ['درجه','نت','فرکانس (هرتز)','فاصله از درجه‌ی قبل','اختلاف با پیانو (سنت)'].forEach((h,i) => T(ctx, h, colsX[i], y, '500 17px Vazirmatn, sans-serif', C.muted));
+    y += 12; ctx.fillStyle = C.line; ctx.fillRect(M, y, inner, 1.5); y += 32;
+    tuningRows().forEach(r => {
+      T(ctx, fa(r.deg), colsX[0], y, '400 19px Vazirmatn, sans-serif', C.ink);
+      T(ctx, r.name, colsX[1], y, `${r.quarter?700:400} 19px Vazirmatn, sans-serif`, r.quarter ? C.accent2 : C.ink);
+      T(ctx, fa(r.hz.toFixed(1)), colsX[2], y, '400 19px Vazirmatn, sans-serif', C.ink);
+      T(ctx, r.step, colsX[3], y, '400 19px Vazirmatn, sans-serif', C.ink);
+      T(ctx, signed(r.dev), colsX[4], y, '400 19px Vazirmatn, sans-serif', C.ink);
+      ctx.fillStyle = C.line; ctx.fillRect(M, y+12, inner, 1); y += 36;
+    });
+    y += 24;
+  }
+
+  const chartBlock = (label, drawFn, hgt) => {
+    if (y + hgt + 60 > PH - M){ ctx = newPage(); y = M + 20; }
+    T(ctx, label, R0, y + 10, '700 26px "Noto Naskh Arabic", serif', C.ink); y += 30;
+    ctx.save(); ctx.translate(M, y); drawFn(null, C, {ctx, w: inner, h: hgt}); ctx.restore(); y += hgt + 30;
+  };
+  if ($('optHist').checked) chartBlock('توزیع نت‌ها', drawHist, 200);
+  if ($('optContour').checked) chartBlock('حرکت ملودی', drawContour, 230);
+
+  // notation
+  const systems = layout(R.items, inner, sp, R.sig, timeSig);
+  const sysH = sp*(names ? 13 : 11.5);
+  if (y + 80 + sysH > PH - M){ ctx = newPage(); y = M; }
+  T(ctx, 'نت ملودی', R0, y + 16, '700 28px "Noto Naskh Arabic", serif', C.ink);
+  const tempoTxt = A.free ? 'آزاد، بی‌وزن' : `♩ = ${A.bpm}`;
+  ctx.save(); ctx.font = '600 20px "Noto Music", Georgia, serif'; ctx.fillStyle = C.ink; ctx.textAlign='left'; ctx.direction='ltr'; ctx.fillText(A.free ? '' : tempoTxt, M, y + 16); ctx.restore();
+  if (A.free) T(ctx, tempoTxt, M, y+16, '500 18px Vazirmatn, sans-serif', C.muted, 'left');
+  y += 34;
+  if (A.shift){ T(ctx, `نت‌ها ${fa(Math.abs(A.shift/24))} اکتاو ${A.shift>0?'بالاتر':'پایین‌تر'} از صدای واقعی نوشته شده‌اند.`, R0, y, '400 16px Vazirmatn, sans-serif', C.muted); y += 20; }
+  y += sp*3;
+  for (const s of systems){
+    if (y + sysH > PH - M){ ctx = newPage(); y = M + sp*3; }
+    drawSystem(ctx, s, M, y, s === systems[systems.length-1] ? Math.min(inner, s.used + sp) : inner, sp, C, {sig:R.sig, timeSig, names});
+    y += sysH;
+  }
+
+  // footers
+  pages.forEach((cv,i) => {
+    const c = cv.getContext('2d');
+    T(c, `${title} · ${R.D.name} ${pcName(R.tonic)}`, R0, PH - 48, '400 15px Vazirmatn, sans-serif', C.muted);
+    T(c, `صفحه‌ی ${fa(i+1)} از ${fa(pages.length)} · نت‌نگار، نسخه‌ی آزمایشی`, M, PH - 48, '400 15px Vazirmatn, sans-serif', C.muted, 'left');
+  });
+
+  const jpegs = [];
+  for (const cv of pages){
+    const b = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.92));
+    jpegs.push(new Uint8Array(await b.arrayBuffer()));
+  }
+  return {blob: imagesToPdf(jpegs, PW, PH, title), pages: pages.length, title};
+}
+
+// Minimal PDF writer: one full-page JPEG per A4 page.
+function imagesToPdf(jpegs, w, h, title){
+  const enc = new TextEncoder(), chunks = [], offsets = [];
+  let pos = 0;
+  const put = d => { const u = typeof d === 'string' ? enc.encode(d) : d; chunks.push(u); pos += u.length; };
+  const PWpt = 595.28, PHpt = 841.89, n = jpegs.length;
+  const hex = s => { let o = 'FEFF'; for (const ch of s){ const c = ch.codePointAt(0); if (c > 0xFFFF){ const v = c - 0x10000; o += (0xD800 + (v>>10)).toString(16).padStart(4,'0') + (0xDC00 + (v&0x3FF)).toString(16).padStart(4,'0'); } else o += c.toString(16).padStart(4,'0'); } return '<' + o.toUpperCase() + '>'; };
+  const obj = (id, body) => { offsets[id] = pos; put(`${id} 0 obj\n`); body(); put('\nendobj\n'); };
+  put('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const pageId = i => 4 + i*3, contId = i => 5 + i*3, imgId = i => 6 + i*3;
+  obj(1, () => put('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2, () => put(`<< /Type /Pages /Count ${n} /Kids [${jpegs.map((_,i)=>pageId(i)+' 0 R').join(' ')}] >>`));
+  obj(3, () => put(`<< /Title ${hex(title)} /Producer (Notnegar) >>`));
+  jpegs.forEach((jp, i) => {
+    obj(pageId(i), () => put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PWpt} ${PHpt}] /Resources << /XObject << /Im0 ${imgId(i)} 0 R >> >> /Contents ${contId(i)} 0 R >>`));
+    const cs = `q ${PWpt} 0 0 ${PHpt} 0 0 cm /Im0 Do Q`;
+    obj(contId(i), () => put(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
+    obj(imgId(i), () => { put(`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jp.length} >>\nstream\n`); put(jp); put('\nendstream'); });
+  });
+  const total = 4 + n*3, xref = pos;
+  let x = `xref\n0 ${total}\n0000000000 65535 f \n`;
+  for (let i=1;i<total;i++) x += String(offsets[i]).padStart(10,'0') + ' 00000 n \n';
+  put(x + `trailer\n<< /Size ${total} /Root 1 0 R /Info 3 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(chunks, {type:'application/pdf'});
+}
+
+$('pdf').addEventListener('click', async () => {
+  $('pdf').disabled = true;
+  try{
+    const {blob, pages, title} = await buildPdf();
+    const dl = await (window.claude?.use ? window.claude.use('downloads') : null);
+    const fname = (title.replace(/[\\/:*?"<>|]+/g,' ').trim() || 'notnegar') + '.pdf';
+    if (!dl){
+      // standalone site: ordinary browser download
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      $('pdfMsg').textContent = `PDF با ${fa(pages)} صفحه دانلود شد.`; return;
+    }
+    try { await dl.save({filename: fname, data: blob}); $('pdfMsg').textContent = `PDF با ${fa(pages)} صفحه ذخیره شد.`; }
+    catch(e){ $('pdfMsg').textContent = e && e.code === 'declined' ? 'ذخیره لغو شد.' : 'ذخیره‌ی فایل در این نما ممکن نشد.'; }
+  } catch(e){ console.error(e); $('pdfMsg').textContent = 'ساخت PDF با خطا روبه‌رو شد.'; }
+  finally { $('pdf').disabled = false; }
+});
+
+/* ---------- playback ---------- */
+function stopPlay(){ if (S.playing){ S.playing.forEach(n => { try{ n.stop(); }catch(e){} }); S.playing = null; $('play').textContent = 'شنیدن نت‌ها'; $('playOrig').textContent = 'شنیدن اصل'; } }
+$('play').addEventListener('click', () => {
+  if (S.playing){ stopPlay(); return; }
+  const ctx = getCtx(); ctx.resume(); const beat = 60/S.A.bpm; let t = ctx.currentTime + 0.1; const nodes = [];
+  for (const it of S.R.items){
+    if (it.type==='bar') continue;
+    const d = it.dur*beat;
+    if (it.type==='note'){
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type='triangle';
+      o.frequency.value = C4*Math.pow(2, ((it.rq-96)*50 + S.A.offset)/1200);
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.25,t+0.02); g.gain.setTargetAtTime(0,t+d*0.85,0.04);
+      o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+d+0.2); nodes.push(o);
+    }
+    t += d;
+  }
+  if (nodes.length){ nodes[nodes.length-1].onended = () => { if (S.playing===nodes) stopPlay(); }; S.playing = nodes; $('play').textContent = 'توقف'; }
+});
+$('playOrig').addEventListener('click', () => {
+  if (S.playing){ stopPlay(); return; }
+  const ctx = getCtx(); ctx.resume(); const s = ctx.createBufferSource(); s.buffer = S.buffer; s.connect(ctx.destination); s.start();
+  s.onended = () => { if (S.playing && S.playing[0]===s) stopPlay(); };
+  S.playing = [s]; $('playOrig').textContent = 'توقف';
+});
+
+/* ---------- inputs ---------- */
+$('pick').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => { const f = e.target.files[0]; if (f){ stopPlay(); $('ovD').value='auto'; $('ovT').value='auto'; fromFile(f); } });
+const drop = $('drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f){ stopPlay(); $('ovD').value='auto'; $('ovT').value='auto'; fromFile(f); } });
+$('sample').addEventListener('click', loadSample);
+['ovD','ovT'].forEach(id => $(id).addEventListener('change', () => { stopPlay(); resolve(); }));
+['instr','optNames'].forEach(id => $(id).addEventListener('change', () => S.R && render()));
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => S.R && render(), 150); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => S.R && render());
+new MutationObserver(() => S.R && render()).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+async function loadSample(){
+  stopPlay(); $('ovD').value='auto'; $('ovT').value='auto';
+  setStatus('در حال ساخت نمونه‌ی ساختگی در شور…', 0.02);
+  const buf = await makeSample();
+  S.buffer = buf; S.srcLabel = 'نمونه‌ی ساختگی: ملودی شور با واخوان و ضرب';
+  $('title').value = 'نمونه در شور';
+  await analyze(buf);
+}
+(document.fonts?.ready || Promise.resolve()).then(loadSample);
+})();
+</script>
+</body>
+</html>
