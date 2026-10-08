@@ -208,11 +208,10 @@ def onsets(x: np.ndarray, sr: int, threshold: float = 3.0) -> list[tuple[float, 
     nov, dt = spectral_flux(x, sr)
     if not nov.size:
         return []
-    med = np.median(nov[nov > 0]) if (nov > 0).any() else 0
-    thr = threshold * (med + 1e-9)
+    peak_ref = np.percentile(nov, 99.5) + 1e-9
+    # relative to the strongest hits, so both sparse and busy drum layers work
+    thr = max(threshold * float(np.median(nov)), 0.15 * peak_ref)
     out, last = [], -1.0
-    peak_ref = np.percentile(nov, 99) + 1e-9
-    thr = max(thr, 0.12 * peak_ref)
     for i in range(1, len(nov) - 1):
         if nov[i] > thr and nov[i] >= nov[i - 1] and nov[i] > nov[i + 1]:
             t = i * dt
