@@ -9,7 +9,7 @@ from pathlib import Path
 from .score import Score, Part, Event, decompose
 from .theory import FA_LETTER, SHORT_ACC
 
-FONT = os.environ.get("NOTNEGAR_FONT", "Vazirmatn, Noto Naskh Arabic, Noto Sans Arabic, DejaVu Sans")
+FONT = os.environ.get("NOTNEGAR_FONT", "Vazirmatn, Noto Naskh Arabic, Noto Sans Arabic, Tahoma, DejaVu Sans")
 LY_DUR = {4: "1", 3: "2.", 2: "2", 1.5: "4.", 1: "4", 0.75: "8.", 0.5: "8", 0.25: "16"}
 ACC_SUFFIX = {"": "", "b": "f", "#": "s", "k": "k", "s": "o"}           # LilyPond persian.ly note names
 ACC_ALTER = {"b": ",FLAT", "#": ",SHARP", "k": ",KORON", "s": ",SORI"}  # constants defined by persian.ly
@@ -230,6 +230,7 @@ def render(src: str, out_dir: str | Path, base: str = "score", timeout: int = 60
         return None, "lilypond not installed"
     exe = os.environ.get("NOTNEGAR_LILYPOND", "lilypond")
     r = subprocess.run([exe, "-dno-point-and-click", "-o", str(out_dir / base), str(ly)],
-                       capture_output=True, text=True, timeout=timeout, cwd=str(out_dir))
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       timeout=timeout, cwd=str(out_dir))
     pdf = out_dir / f"{base}.pdf"
     return (pdf if pdf.exists() else None), (r.stdout + r.stderr)[-6000:]

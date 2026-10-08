@@ -41,10 +41,16 @@ class JobManager:
 
     def _read(self, job_id: str) -> dict | None:
         p = self.root / job_id / "status.json"
-        try:
-            return json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            return None
+        for attempt in range(5):                  # Windows: the file can be briefly locked by a writer
+            try:
+                return json.loads(p.read_text(encoding="utf-8"))
+            except FileNotFoundError:
+                return None
+            except (PermissionError, json.JSONDecodeError):
+                time.sleep(0.05 * (attempt + 1))
+            except Exception:
+                return None
+        return None
 
     def _write(self, job_id: str, **upd) -> dict:
         with self.lock:
@@ -53,7 +59,12 @@ class JobManager:
             p = self.root / job_id / "status.json"
             tmp = p.with_suffix(".tmp")
             tmp.write_text(json.dumps(st, ensure_ascii=False), encoding="utf-8")
-            tmp.replace(p)
+            for attempt in range(10):
+                try:
+                    tmp.replace(p)
+                    break
+                except PermissionError:           # Windows: a reader holds the file open
+                    time.sleep(0.05 * (attempt + 1))
             return st
 
     def status(self, job_id: str) -> dict:

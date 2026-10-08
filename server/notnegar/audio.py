@@ -25,7 +25,7 @@ def decode(path: str | Path, sr: int = SR, max_seconds: float | None = None) -> 
 
 def duration(path: str | Path) -> float:
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, encoding="utf-8", errors="replace")
     try:
         return float(out.stdout.strip())
     except ValueError:
