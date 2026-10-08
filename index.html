@@ -396,7 +396,7 @@ async function analyze(audio){
   if (cents.filter(v => !isNaN(v)).length < 20){ setStatus('ملودی واضحی پیدا نشد. فایلی با آواز یا ساز تکنواز مشخص‌تر امتحان کنید.', 0); return; }
 
   // 4. reference tuning: the fine offset on the 50-cent grid (naturals and quarter-tones agree there);
-  //    whether naturals or quarter-tones sit on the grid is decided by which reading fits a scale best
+  //    then decide whether naturals or quarter-tones sit on that grid
   let cs = 0, sn = 0;
   for (let t=0;t<nF;t++) if (!isNaN(cents[t])){ const a = 2*Math.PI*cents[t]/50; cs += conf[t]*Math.cos(a); sn += conf[t]*Math.sin(a); }
   const o50 = Math.atan2(sn, cs)/(2*Math.PI)*50;
@@ -462,7 +462,9 @@ async function analyze(audio){
   return {offset, notes, quarter, qFrac, hist, fin, scores};
   };
   const cand = [evalOffset(o50), evalOffset(o50 <= 0 ? o50 + 50 : o50 - 50)].filter(r => r.scores.length);
-  const best = cand.sort((a,b) => b.scores[0].s - a.scores[0].s)[0];
+  // both readings keep every interval; prefer fewer notes on quarter-tone positions and a tuning closer to A=440
+  const cost = r => r.qFrac + 0.5*Math.abs(r.offset)/50;
+  const best = cand.sort((a,b) => cost(a) - cost(b))[0];
   const {offset, notes, quarter, qFrac, hist, fin, scores} = best;
 
   // 9. tempo from the beat of the whole recording (spectral flux), with beat phase

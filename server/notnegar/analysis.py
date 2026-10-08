@@ -42,7 +42,8 @@ def offset_candidates(cents: np.ndarray, weights: np.ndarray | None = None) -> l
     """Two readings of the tuning: naturals on the grid, or the quarter-tones on the grid.
 
     On the 50-cent grid naturals and quarter-tones agree, so the fine offset is unbiased; which of the
-    two readings is right is decided later by how well the notes fit a dastgah or scale.
+    two readings is right is decided later: shifting every note by a quarter-tone keeps all intervals, so
+    the pipeline prefers the reading with fewer notes on quarter-tone positions and closer to A=440.
     """
     m = np.isfinite(cents)
     if not m.any():

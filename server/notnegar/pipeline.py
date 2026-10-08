@@ -111,8 +111,11 @@ def run(input_path: str | Path, job_dir: str | Path, opts: dict | None = None, p
         nts = simplify_ornaments(quantize_pitch(raw, q), min_note)
         h, f, nf = pitch_profile(nts)
         rk = rank_scales(h, f, q, nf)
-        if rk and (best is None or rk[0].score > best[0]):
-            best = (rk[0].score, off, q, qf, nts, h, rk)
+        # both readings keep every interval, so the scale fits equally well; prefer the reading that
+        # puts fewer notes on quarter-tone positions and stays closer to A=440
+        cost = qf + 0.5 * abs(off) / 50
+        if rk and (best is None or cost < best[0]):
+            best = (cost, off, q, qf, nts, h, rk)
     _, offset, quarter, qfrac, lead_notes, hist, ranking = best
 
     # 4. the other layers
