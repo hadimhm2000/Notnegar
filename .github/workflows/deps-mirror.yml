@@ -1,0 +1,46 @@
+name: deps-mirror
+
+# Copies third-party downloads that are blocked in some countries (GitLab, Meta's model CDN)
+# into a GitHub release of this repository, which the installers use as their first source.
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/deps-mirror.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: download
+        run: |
+          set -e
+          mkdir -p assets && cd assets
+          curl -fL --retry 3 -o lilypond-2.24.4-mingw-x86_64.zip https://gitlab.com/lilypond/lilypond/-/releases/v2.24.4/downloads/lilypond-2.24.4-mingw-x86_64.zip
+          curl -fL --retry 3 -o lilypond-2.24.4-linux-x86_64.tar.gz https://gitlab.com/lilypond/lilypond/-/releases/v2.24.4/downloads/lilypond-2.24.4-linux-x86_64.tar.gz
+          curl -fL --retry 3 -o vazirmatn-v33.003.zip https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/vazirmatn-v33.003.zip
+          curl -fL --retry 3 -o ffmpeg-release-essentials.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          ls -la
+      - name: demucs weights
+        run: |
+          set -e
+          pip install torch==2.3.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install demucs==4.0.1 "numpy<2"
+          export TORCH_HOME=$PWD/torchhome
+          python -c "from demucs.pretrained import get_model; get_model('htdemucs_6s'); get_model('htdemucs')"
+          (cd torchhome && zip -r ../assets/demucs-models.zip hub)
+          unzip -l assets/demucs-models.zip
+      - name: publish release "deps"
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release view deps >/dev/null 2>&1 || gh release create deps --title "Dependency mirror" \
+            --notes "Copies of LilyPond, ffmpeg, the Vazirmatn font and Demucs model weights, used by the Notnegar installers where the original hosts are unreachable."
+          gh release upload deps assets/* --clobber
+          echo "::notice title=deps::$(gh release view deps --json assets --jq '[.assets[] | .name + " " + (.size|tostring)] | join(", ")')"

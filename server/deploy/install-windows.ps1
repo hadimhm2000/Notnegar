@@ -22,6 +22,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# copies of downloads that are blocked in some countries (GitLab, Meta's CDN), kept in this repository's release
+$Mirror = "https://github.com/hadimhm2000/Notnegar/releases/download/deps"
 $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -102,7 +104,7 @@ Write-Host "    $Py"
 Say "ffmpeg"
 $ffBin = Get-ChildItem -Path (Join-Path $Tools "ffmpeg") -Recurse -Filter ffmpeg.exe -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $ffBin) {
-  $zip = Get-File @("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+  $zip = Get-File @("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip", "$Mirror/ffmpeg-release-essentials.zip",
                     "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip") "ffmpeg.zip"
   Expand-Archive -Path $zip -DestinationPath (Join-Path $Tools "ffmpeg") -Force
   $ffBin = Get-ChildItem -Path (Join-Path $Tools "ffmpeg") -Recurse -Filter ffmpeg.exe | Select-Object -First 1
@@ -116,7 +118,8 @@ Say "LilyPond"
 $lyVer = "2.24.4"
 $lyExe = Get-ChildItem -Path (Join-Path $Tools "lilypond") -Recurse -Filter lilypond.exe -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $lyExe) {
-  $zip = Get-File @("https://gitlab.com/lilypond/lilypond/-/releases/v$lyVer/downloads/lilypond-$lyVer-mingw-x86_64.zip") "lilypond-$lyVer.zip"
+  $zip = Get-File @("$Mirror/lilypond-$lyVer-mingw-x86_64.zip",
+                    "https://gitlab.com/lilypond/lilypond/-/releases/v$lyVer/downloads/lilypond-$lyVer-mingw-x86_64.zip") "lilypond-$lyVer.zip"
   Expand-Archive -Path $zip -DestinationPath (Join-Path $Tools "lilypond") -Force
   $lyExe = Get-ChildItem -Path (Join-Path $Tools "lilypond") -Recurse -Filter lilypond.exe | Select-Object -First 1
 }
@@ -129,7 +132,8 @@ Say "Vazirmatn font"
 $fontsDir = Join-Path $env:WINDIR "Fonts"
 if (-not (Test-Path (Join-Path $fontsDir "Vazirmatn-Regular.ttf"))) {
   try {
-    $zip = Get-File @("https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/vazirmatn-v33.003.zip") "vazirmatn.zip"
+    $zip = Get-File @("https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/vazirmatn-v33.003.zip",
+                      "$Mirror/vazirmatn-v33.003.zip") "vazirmatn.zip"
     $fx = Join-Path $Tools "vazirmatn"
     Expand-Archive -Path $zip -DestinationPath $fx -Force
     foreach ($w in @("Regular", "Bold")) {
@@ -186,7 +190,11 @@ $VPy = Join-Path $Venv "Scripts\python.exe"
 if (-not (Test-Path $VPy)) { & $Py -m venv $Venv; if ($LASTEXITCODE) { Fail "venv failed" } }
 & $VPy -m pip install --upgrade pip --quiet
 & $VPy -m pip install torch==2.3.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu
-if ($LASTEXITCODE) { Fail "PyTorch installation failed (download.pytorch.org may be unreachable from this server)." }
+if ($LASTEXITCODE) {
+  Write-Host "    download.pytorch.org unreachable; installing the CPU build from PyPI instead" -ForegroundColor Yellow
+  & $VPy -m pip install torch==2.3.1 torchaudio==2.3.1
+  if ($LASTEXITCODE) { Fail "PyTorch installation failed (neither download.pytorch.org nor PyPI was reachable)." }
+}
 & $VPy -m pip install -r (Join-Path $Server "requirements.txt") -r (Join-Path $Server "requirements-ml.txt")
 if ($LASTEXITCODE) { Fail "Package installation failed." }
 if (-not $SkipBasicPitch) {
@@ -212,6 +220,14 @@ Write-Host "    $Start"
 if (-not $SkipModels) {
   Say "Model weights"
   $env:TORCH_HOME = $Models
+  $ckpt = Join-Path $Models "hub\checkpoints"
+  if (-not (Get-ChildItem -Path $ckpt -Filter *.th -ErrorAction SilentlyContinue)) {
+    try {
+      $mz = Get-File @("$Mirror/demucs-models.zip") "demucs-models.zip"
+      Expand-Archive -Path $mz -DestinationPath $Models -Force
+      Write-Host "    Demucs weights installed from the mirror"
+    } catch { Write-Host "    mirror unavailable; downloading from the original host" -ForegroundColor Yellow }
+  }
   & $VPy (Join-Path $Server "scripts\download_models.py")
   if ($LASTEXITCODE) { Write-Host "    model download failed; it will be retried on the first song" -ForegroundColor Yellow }
 }
