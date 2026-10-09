@@ -184,8 +184,9 @@ def run(input_path: str | Path, job_dir: str | Path, opts: dict | None = None, p
             # bring the instrument line into the singer's octave
             vm = np.nanmedian(c_v) if np.isfinite(c_v).any() else 0
             if fill.any():
+                # instrument parts are written around (or a little below) the singer's register
                 im = float(np.median(c_i[fill]))
-                c_i = c_i + 1200 * round((vm - im) / 1200)
+                c_i = c_i + 1200 * round((vm - 100 - im) / 1200)
             lead = {"times": voc["times"][:n], "cents": np.where(fill, c_i, c_v),
                     "conf": np.where(fill, ins["conf"][:n], voc["conf"][:n]), "method": f"{voc['method']}+{ins['method']}"}
             vocal_on = vocal_on[:n]
@@ -252,6 +253,30 @@ def run(input_path: str | Path, job_dir: str | Path, opts: dict | None = None, p
     return result
 
 
+def _even_phrase_octaves(notes: list[Note], window_s: float = 4.0) -> list[Note]:
+    """Move passages that sit far above or below the rest of the piece by an octave.
+
+    The voice and the lead instrument often play the same tune an octave apart; on one staff for
+    one instrument they belong in the same register. A note moves when the passage around it
+    (±window_s) lies more than a fifth away from the whole piece.
+    """
+    if len(notes) < 8:
+        return notes
+    on = np.array([n.onset for n in notes])
+    qt = np.array([n.qt for n in notes], dtype=float)
+    ref = float(np.median(qt))
+    # phrases: split at rests of 0.3 s or more; one decision per phrase keeps its contour intact
+    bounds = [0] + [i + 1 for i, (a, b) in enumerate(zip(notes, notes[1:])) if b.onset - a.offset >= 0.3] + [len(notes)]
+    out = []
+    for s0, s1 in zip(bounds, bounds[1:]):
+        centre = float(np.mean(on[s0:s1]))
+        near = qt[np.abs(on - centre) <= window_s]
+        m = float(np.median(near)) if near.size else ref
+        k = int(round((ref - m) / 24)) if abs(ref - m) > 14 else 0
+        out += [Note(n.onset, n.offset, n.qt + 24 * k, n.cents + 1200 * k, n.velocity) for n in notes[s0:s1]]
+    return out
+
+
 def _melody_subdivision(notes: list[Note], phase: float, beat_s: float) -> bool | None:
     """True if the melody divides the beat into three (6/8), False if into two, None if unclear.
 
@@ -302,7 +327,12 @@ def _align_grid(notes: list[Note], phase: float, beat_s: float, compound: bool, 
 
 
 def _min_note(detail: str, beat_s: float) -> float:
-    return {"detailed": max(0.05, 0.3 * beat_s / 4), "simple": 0.55 * beat_s / 2}.get(detail, max(0.07, 0.55 * beat_s / 4))
+    """Shortest note kept as its own note (shorter ones fold into a neighbour).
+
+    Kept below half an eighth even for the simple sheet: folding real eighth notes (which sound
+    shorter than written because of articulation) turned running eighths into quarters.
+    """
+    return {"detailed": max(0.05, 0.07 * beat_s), "simple": max(0.09, 0.17 * beat_s)}.get(detail, max(0.07, 0.12 * beat_s))
 
 
 def _contour_preview(lead: dict, offset: float, max_points: int = 1500) -> list:
@@ -382,6 +412,7 @@ def render(job_dir: str | Path, opts: dict | None = None) -> dict:
     if mode == "sheet" and base["lead"] in layers:
         notes = layers[base["lead"]]
         lo, hi, target = INSTRUMENT_RANGE.get(instr, INSTRUMENT_RANGE["santur"])
+        notes = _even_phrase_octaves(notes)
         shift = place_in_range(notes, lo, hi, target)
         notes = [Note(n.onset, n.offset, n.qt + shift, n.cents, n.velocity) for n in notes]
         events = melody_events(notes, t0, quarter_s, sp, grid)
