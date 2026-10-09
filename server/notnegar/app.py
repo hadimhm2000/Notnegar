@@ -41,16 +41,32 @@ jobs = JobManager(DATA, workers=int(os.environ.get("NOTNEGAR_WORKERS", "1")),
 
 
 class BasicAuth(BaseHTTPMiddleware):
-    """Optional password for a private server: NOTNEGAR_BASIC_AUTH=user:password"""
+    """Optional password for a private server.
+
+    NOTNEGAR_BASIC_AUTH=user:password, or just a password (then any username is accepted).
+    """
 
     def __init__(self, app, creds: str):
         super().__init__(app)
-        self.expected = "Basic " + base64.b64encode(creds.encode()).decode()
+        creds = creds.strip()
+        self.user, sep, self.password = creds.partition(":")
+        if not sep:                                   # password only
+            self.user, self.password = "", creds
+
+    def _ok(self, header: str) -> bool:
+        if not header.startswith("Basic "):
+            return False
+        try:
+            user, _, pwd = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+        except Exception:
+            return False
+        user_ok = (not self.user) or secrets.compare_digest(user, self.user)
+        return user_ok and secrets.compare_digest(pwd, self.password)
 
     async def dispatch(self, request, call_next):
-        if request.url.path == "/api/health" or secrets.compare_digest(request.headers.get("authorization", ""), self.expected):
+        if request.url.path == "/api/health" or self._ok(request.headers.get("authorization", "")):
             return await call_next(request)
-        return Response("Authentication required", 401, {"WWW-Authenticate": 'Basic realm="notnegar"'})
+        return Response("Authentication required", 401, {"WWW-Authenticate": 'Basic realm="notnegar", charset="UTF-8"'})
 
 
 def err(msg: str, code: int = 400) -> JSONResponse:
