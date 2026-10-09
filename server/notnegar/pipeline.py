@@ -252,6 +252,24 @@ def run(input_path: str | Path, job_dir: str | Path, opts: dict | None = None, p
     return result
 
 
+def _melody_subdivision(notes: list[Note], phase: float, beat_s: float) -> bool | None:
+    """True if the melody divides the beat into three (6/8), False if into two, None if unclear.
+
+    Drum layers often play straight hi-hats even in a 6/8 song; the melody's note starts are a
+    steadier witness of how the beat is divided.
+    """
+    if len(notes) < 16:
+        return None
+    x = ((np.array([n.onset for n in notes]) - phase) / beat_s) % 1.0
+    thirds = int(np.sum((np.abs(x - 1 / 3) < 0.07) | (np.abs(x - 2 / 3) < 0.07)))
+    halves = int(np.sum(np.abs(x - 0.5) < 0.07))
+    if thirds >= 0.12 * len(x) and thirds > 1.6 * halves:
+        return True
+    if halves >= 0.12 * len(x) and halves > 1.6 * thirds / 2:
+        return False
+    return None
+
+
 def _align_grid(notes: list[Note], phase: float, beat_s: float, compound: bool, beats_per_bar: float) -> float:
     """Shift the beat grid so the melody's notes start on beats and its strong notes on bar lines.
 
@@ -321,6 +339,12 @@ def render(job_dir: str | Path, opts: dict | None = None) -> dict:
     kinds = {k: v["kind"] for k, v in base["layers"].items()}
     lead_notes = layers.get(base["lead"], [])
     compound = bool(tb.get("compound")) and not free
+    if not free and opts.get("meter") in ("6/8", "4/4", "3/4", "2/4"):
+        compound = opts["meter"] == "6/8"
+    elif not free:
+        mel = _melody_subdivision(lead_notes, tb["phase"], 60 / tb["bpm"])
+        if mel is not None:
+            compound = mel
     if free:
         iois = np.diff([n.onset for n in lead_notes]) if len(lead_notes) > 2 else np.array([0.6])
         beat_s = float(np.clip(np.median(iois) * 2, 0.4, 1.2))
@@ -334,10 +358,13 @@ def render(job_dir: str | Path, opts: dict | None = None) -> dict:
         # the beat is a dotted quarter: 6/8, bar = three quarter-note lengths
         meter, time_sig, quarter_s, tempo_unit, beat_q = 3, (6, 8), beat_s / 1.5, "4.", 1.5
     else:
-        m = int(tb["meter"])
+        m = int(tb["meter"]) if int(tb["meter"]) in (2, 3, 4) and not tb.get("compound") else 4
+        if opts.get("meter") in ("4/4", "3/4", "2/4"):
+            m = int(opts["meter"][0])
         meter, time_sig, quarter_s, tempo_unit, beat_q = m, (m, 4), beat_s, "4", 1.0
     detail = opts.get("detail", "simple" if mode == "sheet" else "normal")
-    grid = 0.5 if detail == "simple" else 0.25
+    # an instrument sheet is written in eighths unless every ornament was asked for
+    grid = 0.25 if (detail == "detailed" or (mode != "sheet" and detail == "normal")) else 0.5
 
     wanted = opts.get("layers") or ([base["lead"]] if mode == "sheet" else base["audible"])
     order = [base["lead"]] + [k for k in LAYER_ORDER if k != base["lead"]]
