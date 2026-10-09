@@ -14,7 +14,8 @@ CLEF = {"treble": ("G", 2, 0), "treble_8": ("G", 2, -1), "bass": ("F", 4, 0), "b
         "percussion": ("percussion", None, 0)}
 
 
-def _note_xml(sc: Score, part: Part, qt: int | None, d: float, chord: bool, tie_start: bool, tie_stop: bool) -> str:
+def _note_xml(sc: Score, part: Part, qt: int | None, d: float, chord: bool, tie_start: bool, tie_stop: bool,
+              marks: tuple = (), first: bool = False) -> str:
     typ, dots = TYPE[d]
     x = ["<note>"]
     if chord:
@@ -38,8 +39,17 @@ def _note_xml(sc: Score, part: Part, qt: int | None, d: float, chord: bool, tie_
         _, acc, _ = sc.speller.spell(qt)
         if acc:
             x.append(f"<accidental>{ACCID[acc]}</accidental>")
-    if tie_start or tie_stop:
-        x.append("<notations>" + ('<tied type="stop"/>' if tie_stop else "") + ('<tied type="start"/>' if tie_start else "") + "</notations>")
+    nots = ""
+    if tie_stop:
+        nots += '<tied type="stop"/>'
+    if tie_start:
+        nots += '<tied type="start"/>'
+    if "riz" in marks and qt is not None:
+        nots += '<ornaments><tremolo type="single">3</tremolo></ornaments>'
+    if "left" in marks and first and qt is not None:
+        nots += "<technical><up-bow/></technical>"
+    if nots:
+        x.append("<notations>" + nots + "</notations>")
     x.append("</note>")
     return "".join(x)
 
@@ -58,11 +68,14 @@ def _measures(sc: Score, part: Part) -> list[list[str]]:
             bar = min(nbars - 1, int(s // meter + 1e-9))
             tie_start = (not e.is_rest) and i < len(pieces) - 1
             tie_stop = (not e.is_rest) and i > 0
+            if i == 0 and e.label:
+                bars[bar].append(f'<direction placement="above"><direction-type><words font-weight="bold" enclosure="rectangle">'
+                                 f'{escape(e.label)}</words></direction-type></direction>')
             if e.is_rest:
                 bars[bar].append(_note_xml(sc, part, None, dd, False, False, False))
             else:
                 for j, qt in enumerate(e.qts):
-                    bars[bar].append(_note_xml(sc, part, qt, dd, j > 0, tie_start, tie_stop))
+                    bars[bar].append(_note_xml(sc, part, qt, dd, j > 0, tie_start, tie_stop, tuple(e.marks), i == 0))
     return bars
 
 
@@ -86,15 +99,17 @@ def build(sc: Score) -> str:
                 sign, line, octch = CLEF.get(p.clef, ("G", 2, 0))
                 clef = f"<clef><sign>{sign}</sign>" + (f"<line>{line}</line>" if line else "") + \
                        (f"<clef-octave-change>{octch}</clef-octave-change>" if octch else "") + "</clef>"
-                time = (f"<time><beats>{meter}</beats><beat-type>4</beat-type></time>" if sc.meter
-                        else f'<time print-object="no"><beats>{meter}</beats><beat-type>4</beat-type></time>')
+                ts_n, ts_d = sc.time_sig if sc.meter else (4, 4)
+                time = (f"<time><beats>{ts_n}</beats><beat-type>{ts_d}</beat-type></time>" if sc.meter
+                        else f'<time print-object="no"><beats>{ts_n}</beats><beat-type>{ts_d}</beat-type></time>')
                 out.append(f"<attributes><divisions>{DIV}</divisions><key><fifths>0</fifths></key>{time}{clef}</attributes>")
                 if i == 0:
-                    out.append(f'<direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit>'
-                               f'<per-minute>{int(round(sc.bpm))}</per-minute></metronome></direction-type>'
+                    dotted = "<beat-unit-dot/>" if sc.tempo_unit == "4." else ""
+                    out.append(f'<direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit>{dotted}'
+                               f'<per-minute>{int(round(sc.tempo_value or sc.bpm))}</per-minute></metronome></direction-type>'
                                f'<sound tempo="{int(round(sc.bpm))}"/></direction>')
             if not notes:
-                notes = [f"<note><rest measure=\"yes\"/><duration>{meter * DIV}</duration><voice>1</voice></note>"]
+                notes = [f"<note><rest measure=\"yes\"/><duration>{int(round(meter * DIV))}</duration><voice>1</voice></note>"]
             out.extend(notes)
             out.append("</measure>")
         out.append("</part>")

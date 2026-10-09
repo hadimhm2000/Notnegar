@@ -104,8 +104,10 @@ async def create_job(request: Request):
         "title": (form.get("title") or "").strip()[:120] or Path(up.filename).stem.replace("_", " ")[:120],
         "artist": (form.get("artist") or "").strip()[:120],
         "instrument": form.get("instrument") or "santur",
-        "detail": form.get("detail") if form.get("detail") in ("simple", "normal", "detailed") else "normal",
-        "names": _bool(form.get("names")),
+        "detail": form.get("detail") if form.get("detail") in ("simple", "normal", "detailed") else "simple",
+        "mode": form.get("mode") if form.get("mode") in ("sheet", "full") else "sheet",
+        "quality": form.get("quality") if form.get("quality") in ("accurate", "fast") else "accurate",
+        "names": _bool(form.get("names"), False),
         "tuning": _bool(form.get("tuning")),
         "email": email,
     }
@@ -128,7 +130,8 @@ async def rerender(request: Request):
         body = await request.json()
     except Exception:
         body = {}
-    allowed = {k: body[k] for k in ("scale", "tonic", "layers", "names", "tuning", "instrument", "title", "artist") if k in body}
+    allowed = {k: body[k] for k in ("scale", "tonic", "layers", "names", "tuning", "instrument", "title", "artist",
+                                    "transpose", "detail") if k in body}
     try:
         result = await asyncio.get_running_loop().run_in_executor(None, jobs.rerender, job_id, allowed)
     except KeyError:

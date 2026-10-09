@@ -49,8 +49,17 @@ def _event_music(sc: Score, part: Part, e: Event) -> list[str]:
     else:
         head = "<" + " ".join(pitch(sc, x) for x in e.qts) + ">"
     toks = []
+    riz = "riz" in e.marks
     for i, d in enumerate(pieces):
-        toks.append(head + LY_DUR[d] + ("~" if i < len(pieces) - 1 else ""))
+        t = head + LY_DUR[d]
+        if riz:
+            t += ":32"                                   # riz (tremolo) on long santur notes
+        if i == 0:
+            if e.label:
+                t += f"^\\markup \\override #'(font-name . {q(FONT)}) \\box \\bold {q(e.label)}"
+            if "left" in e.marks:
+                t += "-\\upbow"                         # "v": left-hand mezrab
+        toks.append(t + ("~" if i < len(pieces) - 1 else ""))
     return toks
 
 
@@ -67,7 +76,8 @@ def _rest_music(sc: Score, e: Event) -> list[str]:
         s += lead
     full = int((end - s + 1e-6) // m)
     if full > 0:
-        out.append(("R1" if m == 4 else "R2." if m == 3 else "R2") + (f"*{full}" if full > 1 else ""))
+        bar = {4: "R1", 3: "R2.", 2: "R2", 1.5: "R4.", 6: "R1."}.get(m, "R1")
+        out.append(bar + (f"*{full}" if full > 1 else ""))
         s += full * m
     if end - s > 1e-6:
         out += [f"r{LY_DUR[d]}" for d in decompose(end - s)]
@@ -147,8 +157,8 @@ def build(sc: Score, opts: dict | None = None) -> str:
     global_lines = ['\\include "persian.ly"']
     g = []
     if meter:
-        g.append(f"\\time {meter}/4")
-        g.append(f"\\tempo 4 = {int(round(sc.bpm))}")
+        g.append(f"\\time {sc.time_sig[0]}/{sc.time_sig[1]}")
+        g.append(f"\\tempo {sc.tempo_unit} = {int(round(sc.tempo_value or sc.bpm))}")
     else:
         g.append("\\cadenzaOn")
         g.append("\\omit Staff.TimeSignature")
@@ -160,7 +170,7 @@ def build(sc: Score, opts: dict | None = None) -> str:
         vname = "v" + p.id.replace("_", "")
         inst = f"\\markup \\override #'(font-name . {q(FONT)}) {q(p.name_fa)}"
         short = f"\\markup \\override #'(font-name . {q(FONT)}) {q(SHORT_NAME.get(p.id.split('_')[0], p.name_fa))}"
-        with_names = "" if p.group else f"instrumentName = {inst} shortInstrumentName = {short} "
+        with_names = "" if (p.group or len(sc.parts) == 1) else f"instrumentName = {inst} shortInstrumentName = {short} "
         staff_type = "RhythmicStaff" if p.kind == "drums" else "Staff"
         body = part_music(sc, p)
         st = (f"\\new {staff_type} = {q(p.id)} \\with {{ {with_names}}}\n"
@@ -183,6 +193,7 @@ def build(sc: Score, opts: dict | None = None) -> str:
             staves.append(sts[0])
 
     header_sub = sc.subtitle
+    tail = ("\\pageBreak\n" + analysis_markup(sc, opts)) if opts.get("analysis_page", True) else ""
     src = f"""\\version "2.24.0"
 {chr(10).join(global_lines)}
 #(set-global-staff-size 18)
@@ -198,14 +209,14 @@ def build(sc: Score, opts: dict | None = None) -> str:
 
 global = {{ {" ".join(g)} }}
 
-{analysis_markup(sc, opts)}
-
-\\pageBreak
+\\markup \\override #'(font-name . {q(FONT)}) \\column {{
+  \\fill-line {{ \\fontsize #6 \\bold {q(sc.title)} }}
+  \\vspace #0.3
+  \\fill-line {{ \\fontsize #-1 {q(sc.instrument_fa and ("نت " + sc.instrument_fa) or "")} \\fontsize #1 {q(sc.composer)} }}
+  \\fill-line {{ "" \\fontsize #-2 {q(header_sub)} }}
+}}
 
 \\score {{
-  \\header {{
-    piece = \\markup {_fa(sc.title + ("  ·  " + header_sub if header_sub else ""))}
-  }}
   <<
   {chr(10).join("  " + s for s in staves)}
   >>
@@ -217,6 +228,8 @@ global = {{ {" ".join(g)} }}
     }}
   }}
 }}
+
+{tail}
 """
     return src
 

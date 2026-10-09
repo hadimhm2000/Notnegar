@@ -31,7 +31,7 @@ def build(sc: Score) -> bytes:
     tracks = []
     tempo = int(60_000_000 / max(20, sc.bpm))
     meta = [(0, b"\xff\x51\x03" + tempo.to_bytes(3, "big")),
-            (0, b"\xff\x58\x04" + bytes([sc.meter or 4, 2, 24, 8]))]
+            (0, b"\xff\x58\x04" + bytes([sc.time_sig[0], {4: 2, 8: 3, 2: 1}.get(sc.time_sig[1], 2), 24, 8]))]
     tracks.append(_track(meta))
     ch = 0
     for p in sc.parts:

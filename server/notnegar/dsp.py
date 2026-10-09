@@ -200,7 +200,22 @@ def tempo_and_beat(x: np.ndarray, sr: int) -> dict:
             bv, phase = s, ph * dt
     r2, r3, r4 = ac(2 * Lf), ac(3 * Lf), ac(4 * Lf)
     meter = 3 if (r3 > r4 * 1.15 and r3 > r2 * 0.95) else 4
-    return {"bpm": float(bpm), "phase": float(phase), "confidence": float(conf), "meter": meter}
+
+    # compound time (6/8, 12/8): the beat divides into three, not two
+    def comb(frac: float) -> float:
+        idx = np.round(np.arange(phase / dt + frac * Lf, n - 1, Lf)).astype(int)
+        idx = idx[(idx > 0) & (idx < n - 1)]
+        if not idx.size:
+            return 0.0
+        return float(np.mean(np.maximum(np.maximum(nov[idx - 1], nov[idx]), nov[idx + 1])))
+
+    thirds = (comb(1 / 3) + comb(2 / 3)) / 2
+    halves = comb(0.5)
+    compound = bool(thirds > 1.25 * halves and thirds > 0.15 * (np.percentile(nov, 99) + 1e-9))
+    if compound:
+        meter = 2          # two dotted-quarter beats: 6/8
+    return {"bpm": float(bpm), "phase": float(phase), "confidence": float(conf), "meter": meter,
+            "compound": compound, "sub_thirds": round(thirds, 4), "sub_halves": round(halves, 4)}
 
 
 def onsets(x: np.ndarray, sr: int, threshold: float = 3.0) -> list[tuple[float, float]]:

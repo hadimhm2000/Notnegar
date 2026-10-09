@@ -34,7 +34,7 @@ def _run(kind: str, use_stems: bool):
         stems_dir.mkdir(exist_ok=True)
         for k, v in stems.items():
             audio.write_wav(stems_dir / f"{k}.wav", v)
-    res = pipeline.run(wav, d / "job", {"title": f"آزمون {kind}", "artist": "نت‌نگار", "instrument": "santur"},
+    res = pipeline.run(wav, d / "job", {"title": f"آزمون {kind}", "artist": "نت‌نگار", "instrument": "santur", "mode": "full"},
                        stems_dir=stems_dir)
     return res, exp, d / "job"
 
@@ -78,6 +78,50 @@ def test_segah_mix():
     """Full path including separation (Demucs if installed, otherwise the stereo fallback)."""
     res, exp, job = _run("segah", False)
     _check(res, exp, job)
+
+
+def test_santur_sheet_68():
+    """Instrument sheet: one staff, G minor key signature, 6/8, mezrab marks."""
+    stems, mix, exp = song("gminor68")
+    d = OUT / "gminor68-sheet"
+    d.mkdir(parents=True, exist_ok=True)
+    wav = d / "input.wav"
+    audio.write_wav(wav, mix)
+    given = d / "given"
+    given.mkdir(exist_ok=True)
+    for k, v in stems.items():
+        audio.write_wav(given / f"{k}.wav", v)
+    res = pipeline.run(wav, d / "job", {"title": "آزمون ۶/۸", "artist": "نت‌نگار", "instrument": "santur", "mode": "sheet"},
+                       stems_dir=given)
+    a = res["analysis"]
+    assert a["scale_id"] == "minor" and a["tonic"] == 14, (a["scale_id"], a["tonic"])
+    assert a["tempo"]["compound"] and a["tempo"]["time_sig"] == [6, 8], a["tempo"]
+    assert abs(a["tempo"]["bpm"] - 80) < 4, a["tempo"]
+    assert [p["id"] for p in res["parts"]] == ["melody"], res["parts"]
+    ly = (d / "job" / "score.ly").read_text(encoding="utf-8")
+    assert "\\time 6/8" in ly and "\\tempo 4. =" in ly
+    assert "(6 . ,FLAT)" in ly and "(2 . ,FLAT)" in ly            # B flat, E flat
+    assert "upbow" in ly, "no mezrab marks"
+    if lilypond.lily_available():
+        assert (d / "job" / "score.pdf").exists(), (d / "job" / "lilypond.log").read_text()[-3000:]
+    # transposition: G minor -> A minor has no flats
+    r2 = pipeline.render(d / "job", {"title": "آزمون", "instrument": "santur", "transpose": 2})
+    assert r2["analysis"]["tonic"] == 18
+    ly2 = (d / "job" / "score.ly").read_text(encoding="utf-8")
+    assert "FLAT" not in ly2.split("global =")[1].split("}")[0]
+
+
+def test_fast_mode_68():
+    """No separation at all: the mix alone still gives key, metre and a sheet."""
+    _, mix, exp = song("gminor68")
+    d = OUT / "gminor68-fast"
+    d.mkdir(parents=True, exist_ok=True)
+    wav = d / "input.wav"
+    audio.write_wav(wav, mix)
+    res = pipeline.run(wav, d / "job", {"title": "سریع", "instrument": "santur", "quality": "fast"})
+    a = res["analysis"]
+    assert a["scale_id"] == "minor" and a["tonic"] == 14, (a["scale_id"], a["tonic"])
+    assert a["tempo"]["time_sig"] == [6, 8], a["tempo"]
 
 
 def test_speller_and_pitch_names():

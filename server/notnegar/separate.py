@@ -13,6 +13,7 @@ import numpy as np
 log = logging.getLogger(__name__)
 
 STEM_INFO = {
+    "melody": {"fa": "ملودی", "en": "Melody"},
     "vocals": {"fa": "آواز", "en": "Vocals"},
     "other":  {"fa": "سازهای دیگر", "en": "Other instruments"},
     "guitar": {"fa": "گیتار", "en": "Guitar"},
@@ -77,9 +78,8 @@ def _demucs(x: np.ndarray, sr: int, model_name: str, progress=None):
     ref = wav.mean(0)
     mean, std = ref.mean(), ref.std() + 1e-8
     wav = (wav - mean) / std
-    threads = int(os.environ.get("NOTNEGAR_TORCH_THREADS", "0"))
-    if threads > 0:
-        torch.set_num_threads(threads)
+    threads = int(os.environ.get("NOTNEGAR_TORCH_THREADS", "0") or 0) or (os.cpu_count() or 1)
+    torch.set_num_threads(threads)
     with torch.no_grad():
         out = apply_model(model, wav[None], device=dev, shifts=int(os.environ.get("NOTNEGAR_DEMUCS_SHIFTS", "1")),
                           split=True, overlap=0.25, progress=False)[0]

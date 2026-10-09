@@ -181,7 +181,14 @@ if (-not (Test-Path $EnvFile)) {
   Copy-Item (Join-Path $Server ".env.example") $EnvFile
   Add-Content -Path $EnvFile -Value "`r`n# Windows install locations`r`nNOTNEGAR_DATA=$Data`r`nTORCH_HOME=$Models`r`n"
   Write-Host "    created $EnvFile"
-} else { Write-Host "    keeping $EnvFile" }
+} else {
+  Write-Host "    keeping $EnvFile"
+  # settings whose old defaults made processing slow
+  $envText = Get-Content $EnvFile -Raw
+  $envNew = $envText -replace "(?m)^NOTNEGAR_CREPE_MODEL=full\s*$", "NOTNEGAR_CREPE_MODEL=tiny"
+  if ($envNew -notmatch "(?m)^NOTNEGAR_DEMUCS_MODEL_MELODY=") { $envNew = $envNew.TrimEnd() + "`r`nNOTNEGAR_DEMUCS_MODEL_MELODY=htdemucs`r`n" }
+  if ($envNew -ne $envText) { Set-Content -Path $EnvFile -Value $envNew -Encoding UTF8; Write-Host "    updated speed settings" }
+}
 
 # ---------------------------------------------------------------- Python packages
 Say "Python packages (PyTorch, Demucs, CREPE...) - this takes a while"

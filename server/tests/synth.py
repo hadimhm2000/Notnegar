@@ -18,6 +18,8 @@ def _tone(f, d, amp, harm=6, vib=0.0, decay=0.0, roll=0.7):
 
 def song(kind: str = "segah", seconds_repeat: int = 2):
     """Returns (stems {name: (2, N)}, mix (2, N), expected dict)."""
+    if kind == "gminor68":
+        return _song_68()
     if kind == "segah":
         tonic = 329.63 * 2 ** (-50 / 1200)          # E koron
         mel = [(0, 1), (3, .5), (7, .5), (3, 1), (0, 1), (None, .5), (3, .5), (7, 1), (11, .5), (7, .5), (3, 1), (0, 2), (None, 1),
@@ -66,3 +68,52 @@ def song(kind: str = "segah", seconds_repeat: int = 2):
     peak = np.abs(mix).max() * 1.1
     stems = {k: (v / peak).astype(np.float32) for k, v in stems.items()}
     return stems, (mix / peak).astype(np.float32), expected
+
+
+def _song_68():
+    """G minor in 6/8 (dotted quarter = 80): a santur-style melody, chords, bass and a 6/8 groove."""
+    tonic = 392.0 / 2                                   # G3, melody an octave up
+    bpm = 80
+    eighth = 60 / bpm / 3
+    # degrees of G minor in quarter-tones: G=0 A=4 Bb=6 C=10 D=14 Eb=16 F=20 G'=24
+    phrase_a = [(14, 1), (16, 1), (14, 1), (10, 1), (6, 1), (10, 1), (14, 3), (None, 3),
+                (10, 1), (14, 1), (10, 1), (6, 1), (4, 1), (6, 1), (0, 3), (None, 3)]
+    phrase_b = [(24, 2), (20, 1), (16, 2), (14, 1), (16, 1), (14, 1), (10, 1), (6, 3),
+                (4, 1), (6, 1), (10, 1), (6, 1), (4, 1), (0, 1), (0, 6)]
+    mel = (phrase_a + phrase_b) * 2
+    total = sum(b for _, b in mel) * eighth + 1.5
+    n = int(total * SR) + SR
+    stems = {k: np.zeros((2, n)) for k in ("vocals", "other", "bass", "drums")}
+    t = 0.4
+    for q, b in mel:
+        d = b * eighth
+        if q is not None:
+            y = _tone(tonic * 2 * 2 ** (q * 50 / 1200), d * 0.92, 0.30, vib=0.005)
+            i = int(t * SR)
+            stems["vocals"][:, i:i + len(y)] += y
+        t += d
+    chords = [[0, 6, 14], [-4, 6, 10], [-8, 4, 10], [-10, 4, 14]]
+    t, k, bar = 0.4, 0, 6 * eighth
+    while t < total - 1.2:
+        ch = chords[k % len(chords)]
+        for j, q in enumerate(ch):
+            y = _tone(tonic * 2 ** (q * 50 / 1200), bar, 0.08, decay=2.0)
+            i = int(t * SR)
+            stems["other"][j % 2, i:i + len(y)] += y
+        yb = _tone(tonic / 2 * 2 ** (ch[0] * 50 / 1200), bar * 0.9, 0.18, harm=3, decay=2.0)
+        i = int(t * SR)
+        stems["bass"][:, i:i + len(yb)] += yb
+        for e8 in range(6):                                 # 6/8: kick on 1 and 4, soft ticks between
+            amp = 0.55 if e8 in (0, 3) else 0.12
+            kt = np.arange(int(0.08 * SR)) / SR
+            f0 = 55 if e8 in (0, 3) else 2500
+            kk = amp * np.sin(2 * np.pi * f0 * kt) * np.exp(-kt * (30 if e8 in (0, 3) else 90))
+            i = int((t + e8 * eighth) * SR)
+            stems["drums"][:, i:i + len(kk)] += kk
+        t += bar
+        k += 1
+    mix = sum(stems.values())
+    peak = np.abs(mix).max() * 1.1
+    stems = {k: (v / peak).astype(np.float32) for k, v in stems.items()}
+    return stems, (mix / peak).astype(np.float32), {"scale": "minor", "tonic": 14, "quarter": False, "bpm": 80,
+                                                    "compound": True}

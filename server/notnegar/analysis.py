@@ -109,19 +109,34 @@ def segment_notes(times: np.ndarray, cents: np.ndarray, offset: float, *, split_
 
 
 def has_quarter_tones(raw_notes: list[dict]) -> tuple[bool, float]:
-    """Decide on whole notes (not frames) whether the music uses quarter-tones."""
-    qd = td = 0.0
+    """Decide on whole notes (not frames) whether the music uses quarter-tones.
+
+    Koron and sori notes are scale degrees: they are held, and they recur on the same pitch.
+    Sliding or out-of-tune singing also produces notes between the semitones, but mostly short
+    passing ones, so the decision rests on the longer notes.
+    """
+    durs = [nt["offset"] - nt["onset"] for nt in raw_notes]
+    if not durs:
+        return False, 0.0
+    long_min = max(0.25, float(np.median(durs)) * 1.3)
+    qd = td = lqd = ltd = 0.0
     qpc = np.zeros(24)
-    for nt in raw_notes:
-        d = nt["offset"] - nt["onset"]
+    for nt, d in zip(raw_notes, durs):
         dev = nt["med"] - round(nt["med"] / 100) * 100
+        is_q = abs(dev) >= 30
         td += d
-        if abs(dev) >= 30:
+        if d >= long_min:
+            ltd += d
+        if is_q:
             qd += d
             qpc[int(round(nt["med"] / 50)) % 24] += d
+            if d >= long_min:
+                lqd += d
     frac = qd / td if td else 0.0
+    long_frac = lqd / ltd if ltd else 0.0
     top = qpc.max() / qd if qd else 0.0
-    return bool(frac > 0.10 and top > 0.30), float(frac)
+    quarter = (long_frac > 0.12 and frac > 0.08 and top > 0.30) or frac > 0.30
+    return bool(quarter), float(frac)
 
 
 def quantize_pitch(raw_notes: list[dict], quarter: bool, velocity: float = 0.8) -> list[Note]:
@@ -157,7 +172,9 @@ def pitch_profile(notes: list[Note]) -> tuple[np.ndarray, np.ndarray, int]:
     n_fin = 0
     for i, n in enumerate(notes):
         k = n.qt % 24
-        hist[k] += n.dur
+        # a note sung between two semitones (and written on one of them) says little about the scale
+        dev = n.cents - round(n.cents / 100) * 100
+        hist[k] += n.dur * (0.3 if (k % 2 == 0 and abs(dev) >= 30) else 1.0)
         nx = notes[i + 1] if i + 1 < len(notes) else None
         if nx is None or nx.onset - n.offset > 0.3:
             fin[k] += n.dur + (0 if nx else 0.5)

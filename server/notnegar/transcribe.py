@@ -74,7 +74,7 @@ def _crepe(mono: np.ndarray, sr: int, fmin: float, fmax: float):  # pragma: no c
     audio = torch.from_numpy(y.astype(np.float32))[None]
     hop = 160
     dev = "cuda" if torch.cuda.is_available() else "cpu"
-    model = os.environ.get("NOTNEGAR_CREPE_MODEL", "full")
+    model = os.environ.get("NOTNEGAR_CREPE_MODEL", "tiny")
     with torch.no_grad():
         pitch, per = torchcrepe.predict(audio, 16000, hop, fmin, fmax, model=model, batch_size=1024,
                                         device=dev, return_periodicity=True, decoder=torchcrepe.decode.viterbi)

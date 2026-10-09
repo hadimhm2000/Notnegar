@@ -22,6 +22,8 @@ class Event:
     qts: list = field(default_factory=list)     # empty → rest
     velocity: float = 0.8
     name: str = ""              # Persian note name for lyrics-style labels (melodic parts)
+    marks: list = field(default_factory=list)   # "left" (left-hand mezrab), "riz" (tremolo)
+    label: str = ""             # section name shown above the first note (مقدمه، شعر، ...)
 
     @property
     def is_rest(self) -> bool:
@@ -45,7 +47,7 @@ class Score:
     title: str
     subtitle: str
     bpm: float
-    meter: int                  # beats per bar; 0 = free rhythm (no bar lines)
+    meter: float                # bar length in quarter notes; 0 = free rhythm (no bar lines)
     scale: Scale
     tonic: int
     speller: Speller
@@ -53,14 +55,19 @@ class Score:
     beat_s: float
     t0: float
     analysis: dict = field(default_factory=dict)
+    time_sig: tuple = (4, 4)    # displayed time signature, e.g. (6, 8)
+    tempo_unit: str = "4"       # LilyPond tempo unit: "4" or "4." (compound time)
+    tempo_value: float = 0.0    # metronome number for tempo_unit
+    composer: str = ""
+    instrument_fa: str = ""
 
     @property
     def total_beats(self) -> float:
         return max((e.start + e.dur for p in self.parts for e in p.events), default=0)
 
 
-def _q(v: float) -> float:
-    return round(v / GRID) * GRID
+def _q(v: float, grid: float = GRID) -> float:
+    return round(v / grid) * grid
 
 
 def _fill(events: list[Event], end: float) -> list[Event]:
@@ -78,21 +85,21 @@ def _fill(events: list[Event], end: float) -> list[Event]:
     return out
 
 
-def melody_events(notes: list[Note], t0: float, beat: float, speller: Speller) -> list[Event]:
+def melody_events(notes: list[Note], t0: float, beat: float, speller: Speller, grid: float = GRID) -> list[Event]:
     ev = []
     for i, n in enumerate(notes):
-        s = _q((n.onset - t0) / beat)
-        e = _q((n.offset - t0) / beat)
+        s = _q((n.onset - t0) / beat, grid)
+        e = _q((n.offset - t0) / beat, grid)
         if i + 1 < len(notes):
-            e = min(e, _q((notes[i + 1].onset - t0) / beat))
-        if e - s < GRID:
-            e = s + GRID
+            e = min(e, _q((notes[i + 1].onset - t0) / beat, grid))
+        if e - s < grid:
+            e = s + grid
         if s < 0:
             continue
         # a short gap before the next note is articulation, not a rest
         if i + 1 < len(notes):
-            nxt = _q((notes[i + 1].onset - t0) / beat)
-            if 0 < nxt - e <= 0.25 and nxt - s <= 4:
+            nxt = _q((notes[i + 1].onset - t0) / beat, grid)
+            if 0 < nxt - e <= max(0.25, grid) * 1.01 and nxt - s <= 4:
                 e = nxt
         ev.append(Event(s, e - s, [n.qt], n.velocity, speller.short(n.qt)))
     # drop overlaps created by rounding
@@ -133,6 +140,40 @@ def drum_events(hits: list[Note], t0: float, beat: float) -> list[Event]:
     return ev
 
 
+def santur_marks(events: list[Event], beat_q: float, riz_min: float) -> None:
+    """Suggested mezrab hands: a note on the beat is struck with the right hand, the notes between
+    beats alternate (left = "v" in Persian santur notation); long notes are played as riz (tremolo)."""
+    prev = None
+    for e in events:
+        if e.is_rest:
+            prev = None
+            continue
+        if e.dur >= riz_min - 1e-6:
+            e.marks.append("riz")
+            prev = "R"
+            continue
+        on_beat = abs(e.start / beat_q - round(e.start / beat_q)) < 1e-6
+        hand = "R" if (on_beat or prev != "R") else "L"
+        if hand == "L":
+            e.marks.append("left")
+        prev = hand
+
+
+def place_in_range(notes: list[Note], lo_qt: int, hi_qt: int, target_qt: int) -> int:
+    """Octave shift (in quarter-tones) that centres a melody on target and keeps most of it in range."""
+    if not notes:
+        return 0
+    med = float(np.median([n.qt for n in notes]))
+    best, best_cost = 0, None
+    for k in range(-4, 5):
+        sh = 24 * k
+        out = sum(1 for n in notes if not lo_qt <= n.qt + sh <= hi_qt)
+        cost = out * 10 + abs(med + sh - target_qt) / 24
+        if best_cost is None or cost < best_cost:
+            best, best_cost = sh, cost
+    return best
+
+
 def split_piano(notes: list[Note], split_qt: int = 120) -> tuple[list[Note], list[Note]]:
     return [n for n in notes if n.qt >= split_qt], [n for n in notes if n.qt < split_qt]
 
@@ -152,7 +193,7 @@ def choose_clef(notes: list[Note], kind: str) -> str:
     return "bass_8"
 
 
-def finalize(parts: list[Part], meter: int = 0) -> None:
+def finalize(parts: list[Part], meter: float = 0) -> None:
     end = max((e.start + e.dur for p in parts for e in p.events), default=0)
     if meter:
         end = float(np.ceil(end / meter - 1e-9) * meter)
