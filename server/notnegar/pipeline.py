@@ -252,6 +252,37 @@ def run(input_path: str | Path, job_dir: str | Path, opts: dict | None = None, p
     return result
 
 
+def _align_grid(notes: list[Note], phase: float, beat_s: float, compound: bool, beats_per_bar: float) -> float:
+    """Shift the beat grid so the melody's notes start on beats and its strong notes on bar lines.
+
+    The tempo tracker finds the beat period reliably, but its phase can lock onto hi-hats between
+    the beats; the melody itself tells where the beats are.
+    """
+    if not notes:
+        return phase
+    sub = 3 if compound else 2
+    on = np.array([n.onset for n in notes])
+    w = np.array([min(n.dur, 2 * beat_s) for n in notes])
+    best, best_s = phase, -1.0
+    for j in range(sub):
+        p = phase + j * beat_s / sub
+        x = ((on - p) / beat_s) % 1.0
+        d = np.minimum(x, 1 - x)
+        sc = float(np.sum(w * (d < 0.12)))
+        if sc > best_s:
+            best, best_s = p, sc
+    bpb = int(round(beats_per_bar)) or 1
+    if bpb > 1:
+        scores = []
+        for b in range(bpb):
+            p = best + b * beat_s
+            x = ((on - p) / (beat_s * bpb)) % 1.0
+            d = np.minimum(x, 1 - x) * bpb
+            scores.append(float(np.sum(w * (d < 0.12))))
+        best = best + int(np.argmax(scores)) * beat_s
+    return best
+
+
 def _min_note(detail: str, beat_s: float) -> float:
     return {"detailed": max(0.05, 0.3 * beat_s / 4), "simple": 0.55 * beat_s / 2}.get(detail, max(0.07, 0.55 * beat_s / 4))
 
@@ -312,8 +343,11 @@ def render(job_dir: str | Path, opts: dict | None = None) -> dict:
     order = [base["lead"]] + [k for k in LAYER_ORDER if k != base["lead"]]
     wanted = [k for k in order if k in wanted and k in layers]
     first_on = min((n.onset for k in wanted for n in layers[k][:1]), default=0.0)
-    phase = tb["phase"] if not free else first_on
-    t0 = phase + np.floor((first_on - phase) / beat_s) * beat_s if not free else first_on
+    if free:
+        t0 = first_on
+    else:
+        t0 = _align_grid(lead_notes, tb["phase"], beat_s, compound, meter / beat_q if meter else 1)
+        t0 = t0 + np.floor((first_on - t0) / (beat_s * max(1, meter / beat_q))) * beat_s * max(1, meter / beat_q)
     t0 = max(0.0, float(t0))
     instr = opts.get("instrument", "santur")
 

@@ -152,7 +152,7 @@ def melody_salience(x: np.ndarray, sr: int, side: np.ndarray | None = None, fmin
     voiced = (pick >= 0) & (energy > e_gate) & (chosen_s > 0.22 * s_ref)
     cents = np.where(voiced, cand_c[np.arange(nF), np.maximum(pick, 0)], np.nan)
     conf = np.where(voiced, np.minimum(1, chosen_s / (s_ref + 1e-12)), 0)
-    times = np.arange(nF) * hop / sr
+    times = (np.arange(nF) * hop + n_fft / 2) / sr            # centre of each analysis window
     return times, cents.astype(np.float64), conf.astype(np.float64)
 
 
@@ -214,6 +214,7 @@ def tempo_and_beat(x: np.ndarray, sr: int) -> dict:
     compound = bool(thirds > 1.25 * halves and thirds > 0.15 * (np.percentile(nov, 99) + 1e-9))
     if compound:
         meter = 2          # two dotted-quarter beats: 6/8
+    phase += 512 / 22050                                     # window centre (spectral_flux uses 1024 at 22.05 kHz)
     return {"bpm": float(bpm), "phase": float(phase), "confidence": float(conf), "meter": meter,
             "compound": compound, "sub_thirds": round(thirds, 4), "sub_halves": round(halves, 4)}
 

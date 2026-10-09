@@ -200,7 +200,9 @@ def build(sc: Score, opts: dict | None = None) -> str:
 \\paper {{
   #(set-paper-size "a4")
   top-margin = 12\\mm bottom-margin = 12\\mm left-margin = 14\\mm right-margin = 14\\mm
+  ragged-bottom = ##t
   ragged-last-bottom = ##t
+  system-system-spacing.basic-distance = #14
   print-page-number = ##t
   oddFooterMarkup = \\markup \\fill-line {{ \\override #'(font-name . {q(FONT)}) \\fontsize #-3 {q(sc.title + "  ·  نت‌نگار")} \\fontsize #-3 \\fromproperty #'page:page-number-string }}
   evenFooterMarkup = \\oddFooterMarkup
