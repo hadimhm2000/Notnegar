@@ -193,10 +193,12 @@ def build(sc: Score, opts: dict | None = None) -> str:
             staves.append(sts[0])
 
     header_sub = sc.subtitle
+    spacing = ("\\override SpacingSpanner.common-shortest-duration = #(ly:make-moment 1/32)"
+               if len(sc.parts) == 1 else "")
     tail = ("\\pageBreak\n" + analysis_markup(sc, opts)) if opts.get("analysis_page", True) else ""
     src = f"""\\version "2.24.0"
 {chr(10).join(global_lines)}
-#(set-global-staff-size 18)
+#(set-global-staff-size {20 if len(sc.parts) == 1 else 18})
 \\paper {{
   #(set-paper-size "a4")
   top-margin = 12\\mm bottom-margin = 12\\mm left-margin = 14\\mm right-margin = 14\\mm
@@ -223,7 +225,7 @@ global = {{ {" ".join(g)} }}
   {chr(10).join("  " + s for s in staves)}
   >>
   \\layout {{
-    \\context {{ \\Score \\override BarNumber.font-size = #-2 }}
+    \\context {{ \\Score \\override BarNumber.font-size = #-2 {spacing} }}
     \\context {{ \\Voice
       \\remove Note_heads_engraver \\consists Completion_heads_engraver
       \\remove Rest_engraver \\consists Completion_rest_engraver
