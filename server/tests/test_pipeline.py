@@ -102,6 +102,11 @@ def test_santur_sheet_68():
     assert "\\time 6/8" in ly and "\\tempo 4. =" in ly
     assert "(6 . ,FLAT)" in ly and "(2 . ,FLAT)" in ly            # B flat, E flat
     assert "upbow" in ly, "no mezrab marks"
+    # the synthetic tune is played twice: written once between |: and :|
+    assert "\\repeat volta 2" in ly, a.get("repeats")
+    xml = (d / "job" / "score.musicxml").read_text(encoding="utf-8")
+    assert 'repeat direction="backward"' in xml and 'repeat direction="forward"' in xml
+    ET.fromstring(xml)
     if lilypond.lily_available():
         assert (d / "job" / "score.pdf").exists(), (d / "job" / "lilypond.log").read_text()[-3000:]
     # transposition: G minor -> A minor has no flats

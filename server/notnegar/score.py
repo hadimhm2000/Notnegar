@@ -60,6 +60,7 @@ class Score:
     tempo_value: float = 0.0    # metronome number for tempo_unit
     composer: str = ""
     instrument_fa: str = ""
+    repeats: list = field(default_factory=list)   # [(first bar, length in bars)], written once with |: :|
 
     @property
     def total_beats(self) -> float:
@@ -221,4 +222,104 @@ def split_at_bars(start: float, dur: float, meter: int) -> list[tuple[float, flo
         e = min(end, bar_end)
         out.append((s, e - s))
         s = e
+    return out
+
+
+# ---------------------------------------------------------------- bars and repeats
+@dataclass
+class BarItem:
+    start: float          # quarter notes from the bar line
+    dur: float
+    event: Event
+    first: bool           # first piece of its event (marks and labels go here)
+    tie: bool             # tied into the next bar
+
+
+def split_bars(events: list[Event], meter: float) -> list[list[BarItem]]:
+    """Cut a part's events at the bar lines."""
+    total = max((e.start + e.dur for e in events), default=0)
+    nbars = max(1, int(np.ceil(total / meter - 1e-9)))
+    bars: list[list[BarItem]] = [[] for _ in range(nbars)]
+    for e in events:
+        pieces = split_at_bars(e.start, e.dur, meter)
+        for i, (s, d) in enumerate(pieces):
+            b = min(nbars - 1, int(np.floor(s / meter + 1e-9)))
+            bars[b].append(BarItem(s - b * meter, d, e, i == 0, (not e.is_rest) and i < len(pieces) - 1))
+    return bars
+
+
+def _bar_notes(bar: list[BarItem]) -> list[tuple]:
+    return [(round(it.start, 3), tuple(it.event.qts)) for it in bar if not it.event.is_rest]
+
+
+def bar_similarity(a: list[BarItem], b: list[BarItem]) -> float:
+    na, nb = _bar_notes(a), _bar_notes(b)
+    if not na and not nb:
+        return 1.0
+    if not na or not nb:
+        return 0.0
+    sb = list(nb)
+    hit = 0
+    for x in na:
+        if x in sb:
+            sb.remove(x)
+            hit += 1
+    return hit / max(len(na), len(nb))
+
+
+def _passage_seq(bars: list[list[BarItem]]) -> list[tuple]:
+    seq = []
+    for k, bar in enumerate(bars):
+        for it in bar:
+            if not it.event.is_rest and it.first:
+                seq.append((k, round(it.start * 2) / 2, it.event.qts[0] % 24))
+    return seq
+
+
+def _seq_similarity(a: list[tuple], b: list[tuple]) -> float:
+    """1 - edit distance between two note sequences (pitch class, beat position within a quarter)."""
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    ta = [(x[0], x[2]) for x in a]
+    tb = [(x[0], x[2]) for x in b]
+    n, m = len(ta), len(tb)
+    prev = list(range(m + 1))
+    for i in range(1, n + 1):
+        cur = [i] + [0] * m
+        for j in range(1, m + 1):
+            same = ta[i - 1][1] == tb[j - 1][1] and abs(ta[i - 1][0] - tb[j - 1][0]) <= 0
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (0 if same else 1))
+        prev = cur
+    return 1.0 - prev[m] / max(n, m)
+
+
+def find_repeats(bars: list[list[BarItem]], max_len: int = 8, min_sim: float = 0.62,
+                 min_notes: int = 5) -> list[tuple[int, int]]:
+    """Passages played twice in a row, as (first bar, length in bars).
+
+    Greedy from the start, longest passage first. A transcription of a real recording never
+    repeats note for note, so two passages count as one repeated passage when their note
+    sequences (pitch, bar within the passage) mostly agree; the first playing is the one written.
+    """
+    out, i, n = [], 0, len(bars)
+    while i < n:
+        found = 0
+        for L in range(min(max_len, (n - i) // 2), 0, -1):
+            a = _passage_seq(bars[i:i + L])
+            b = _passage_seq(bars[i + L:i + 2 * L])
+            if len(a) < max(min_notes, 2 * L):
+                continue
+            if len(b) < 0.6 * len(a) or len(b) > 1.6 * len(a):
+                continue
+            need = min_sim if L > 1 else 0.85
+            if _seq_similarity(a, b) >= need:
+                found = L
+                break
+        if found:
+            out.append((i, found))
+            i += 2 * found
+        else:
+            i += 1
     return out

@@ -84,7 +84,65 @@ def _rest_music(sc: Score, e: Event) -> list[str]:
     return out
 
 
+def _item_tokens(sc: Score, part: Part, it) -> list[str]:
+    """Tokens for one piece of an event inside a bar."""
+    e = it.event
+    pieces = decompose(it.dur)
+    if e.is_rest:
+        return [f"r{LY_DUR[d]}" for d in pieces]
+    head = "c" if part.kind == "drums" else (pitch(sc, e.qts[0]) if len(e.qts) == 1 else
+                                              "<" + " ".join(pitch(sc, x) for x in e.qts) + ">")
+    toks = []
+    for i, d in enumerate(pieces):
+        t = head + LY_DUR[d]
+        if "riz" in e.marks:
+            t += ":32"
+        if i == 0 and it.first:
+            if e.label:
+                t += f"^\\markup \\override #'(font-name . {q(FONT)}) \\box \\bold {q(e.label)}"
+            if "left" in e.marks:
+                t += "-\\upbow"
+        if i < len(pieces) - 1 or it.tie:
+            t += "~"
+        toks.append(t)
+    return toks
+
+
+def _bar_tokens(sc: Score, part: Part, bar) -> list[str]:
+    if not any(not it.event.is_rest for it in bar):
+        full = {4: "R1", 3: "R2.", 2: "R2", 1.5: "R4.", 6: "R1."}.get(sc.meter, "R1")
+        return [full]
+    toks = []
+    for it in bar:
+        toks += _item_tokens(sc, part, it)
+    return toks
+
+
+def part_music_bars(sc: Score, part: Part) -> str:
+    """Bar-by-bar writing, so passages played twice can be written once between |: and :|."""
+    from .score import split_bars
+    bars = split_bars(part.events, sc.meter)
+    starts = {s: L for s, L in sc.repeats}
+    lines, b = [], 0
+    while b < len(bars):
+        if b in starts:
+            L = starts[b]
+            inner = [" ".join(_bar_tokens(sc, part, bars[k])) for k in range(b, b + L)]
+            if inner:
+                inner[-1] = inner[-1].rstrip("~")         # no tie out of the repeat
+            lines.append("\\repeat volta 2 {")
+            lines += ["  " + x + " |" for x in inner]
+            lines.append("}")
+            b += 2 * L
+            continue
+        lines.append(" ".join(_bar_tokens(sc, part, bars[b])) + " |")
+        b += 1
+    return "\n      ".join(lines)
+
+
 def part_music(sc: Score, part: Part) -> str:
+    if sc.meter and len(sc.parts) == 1:
+        return part_music_bars(sc, part)
     toks = []
     for e in part.events:
         toks += _rest_music(sc, e) if e.is_rest else _event_music(sc, part, e)

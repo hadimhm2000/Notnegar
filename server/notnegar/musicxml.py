@@ -93,8 +93,17 @@ def build(sc: Score) -> str:
     out.append("</part-list>")
     for i, p in enumerate(sc.parts):
         out.append(f'<part id="P{i+1}">')
+        rep_start = {s: L for s, L in sc.repeats} if sc.meter else {}
+        rep_end = {s + L - 1 for s, L in rep_start.items()}
+        skip = {k for s, L in rep_start.items() for k in range(s + L, s + 2 * L)}
+        num = 0
         for b, notes in enumerate(_measures(sc, p)):
-            out.append(f'<measure number="{b+1}">')
+            if b in skip:
+                continue                       # second playing of a repeated passage
+            num += 1
+            out.append(f'<measure number="{num}">')
+            if b in rep_start:
+                out.append('<barline location="left"><bar-style>heavy-light</bar-style><repeat direction="forward"/></barline>')
             if b == 0:
                 sign, line, octch = CLEF.get(p.clef, ("G", 2, 0))
                 clef = f"<clef><sign>{sign}</sign>" + (f"<line>{line}</line>" if line else "") + \
@@ -111,6 +120,8 @@ def build(sc: Score) -> str:
             if not notes:
                 notes = [f"<note><rest measure=\"yes\"/><duration>{int(round(meter * DIV))}</duration><voice>1</voice></note>"]
             out.extend(notes)
+            if b in rep_end:
+                out.append('<barline location="right"><bar-style>light-heavy</bar-style><repeat direction="backward"/></barline>')
             out.append("</measure>")
         out.append("</part>")
     out.append("</score-partwise>")

@@ -12,8 +12,8 @@ import numpy as np
 from . import audio, dsp, lilypond, midi, musicxml
 from .analysis import (Note, has_quarter_tones, offset_candidates, pitch_profile, quantize_pitch,
                        rank_scales, segment_notes, simplify_ornaments)
-from .score import (Part, Score, choose_clef, drum_events, finalize, melody_events, place_in_range,
-                    poly_events, santur_marks, split_piano)
+from .score import (Part, Score, choose_clef, drum_events, finalize, find_repeats, melody_events,
+                    place_in_range, poly_events, santur_marks, split_bars, split_piano)
 from .separate import STEM_INFO, separate
 from .theory import SCALE_BY_ID, Speller, tuning_table
 from .transcribe import drum_hits, melodic_layer, poly_layer
@@ -488,6 +488,10 @@ def render(job_dir: str | Path, opts: dict | None = None) -> dict:
     sc = Score(title, subtitle, bpm, meter, scale, tonic, sp, parts, quarter_s, t0, analysis,
                time_sig=time_sig, tempo_unit=tempo_unit, tempo_value=round(bpm), composer=artist,
                instrument_fa=INSTRUMENTS.get(instr, "") if mode == "sheet" else "")
+
+    if mode == "sheet" and meter and opts.get("repeats", True) and parts:
+        sc.repeats = find_repeats(split_bars(parts[0].events, meter))
+    analysis["repeats"] = [list(r) for r in sc.repeats]
 
     files = {}
     ly_src = lilypond.build(sc, {"names": opts.get("names", mode != "sheet"), "tuning": opts.get("tuning", True)})
